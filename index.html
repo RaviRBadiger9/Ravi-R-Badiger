@@ -1,57 +1,439 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Dashboard Toy Damping</title>
-  <style>
-    body { font-family: Arial, sans-serif; margin: 20px; }
-    h1 { color: #2c3e50; }
-    input, button { margin: 5px; padding: 8px; }
-    #result { margin-top: 15px; font-weight: bold; }
-    canvas { border: 1px solid #ccc; margin-top: 20px; }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VibeSim | Pro Dashboard Toy Simulator</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/0.160.0/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
 </head>
 <body>
-  <h1>Dashboard Toy Damping Calculator</h1>
-  <p>Enter values to calculate damping:</p>
-  <input type="number" id="mass" placeholder="Mass (kg)">
-  <input type="number" id="spring" placeholder="Spring stiffness (N/m)">
-  <input type="number" id="zeta" placeholder="Damping ratio">
-  <button onclick="calculate()">Calculate</button>
+    <div id="app">
+        <aside class="controls glass">
+            <div class="brand">
+                <h1>VIBESIM</h1>
+                <span class="badge">v2.4 Engineering Edition</span>
+            </div>
 
-  <p id="result"></p>
-  <canvas id="graph" width="400" height="200"></canvas>
+            <section class="control-group">
+                <h3>System Parameters</h3>
+                <div class="input-field">
+                    <label>Mass ($m$): <span id="val-mass">2.0</span> kg</label>
+                    <input type="range" id="mass" min="0.5" max="10" step="0.1" value="2">
+                </div>
+                <div class="input-field">
+                    <label>Stiffness ($k$): <span id="val-k">200</span> N/m</label>
+                    <input type="range" id="stiffness" min="50" max="1000" step="10" value="200">
+                </div>
+                <div class="input-field">
+                    <label>Damping ($c$): <span id="val-c">1.5</span> Ns/m</label>
+                    <input type="range" id="damping" min="0.1" max="10" step="0.1" value="1.5">
+                </div>
+            </section>
 
-  <script>
-    async function calculate() {
-      let m = parseFloat(document.getElementById("mass").value);
-      let k = parseFloat(document.getElementById("spring").value);
-      let zeta = parseFloat(document.getElementById("zeta").value);
+            <section class="control-group">
+                <h3>Excitation Force</h3>
+                <div class="input-field">
+                    <label>Frequency ($\omega$): <span id="val-freq">5.0</span> rad/s</label>
+                    <input type="range" id="frequency" min="0" max="30" step="0.1" value="5">
+                </div>
+                <div class="input-field">
+                    <label>Amplitude ($F_0$): <span id="val-force">10</span> N</label>
+                    <input type="range" id="force" min="0" max="50" step="1" value="10">
+                </div>
+            </section>
 
-      // Call backend API
-      let res = await fetch('/calculate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ mass: m, spring: k, zeta: zeta })
-      });
-      let data = await res.json();
+            <div class="metrics">
+                <div class="metric-card">
+                    <span class="label">Natural Freq ($f_n$)</span>
+                    <span class="value" id="res-fn">1.59 Hz</span>
+                </div>
+                <div class="metric-card" id="resonance-alert">
+                    <span class="label">Status</span>
+                    <span class="value" id="res-status">Stable</span>
+                </div>
+            </div>
+        </aside>
 
-      document.getElementById("result").innerText =
-        `Natural frequency: ${data.omega_n} rad/s
-         Critical damping: ${data.c_cr} Ns/m
-         Required damping: ${data.c} Ns/m`;
+        <main class="viewport-container">
+            <div id="canvas-container"></div>
+            <div class="overlay-ui">
+                <div class="legend">3D REAL-TIME SYSTEM RESPONSE</div>
+            </div>
+        </main>
 
-      // Simple response curve
-      let ctx = document.getElementById("graph").getContext("2d");
-      ctx.clearRect(0,0,400,200);
-      ctx.beginPath();
-      ctx.moveTo(0,100);
-      for(let t=0; t<400; t++){
-        let x = Math.exp(-zeta*data.omega_n*(t/50)) * Math.cos(data.omega_n*(t/50));
-        ctx.lineTo(t,100 - x*50);
-      }
-      ctx.stroke();
-    }
-  </script>
+        <section class="analytics glass">
+            <div class="chart-container">
+                <canvas id="freqChart"></canvas>
+            </div>
+            <div class="chart-container">
+                <canvas id="timeChart"></canvas>
+            </div>
+        </section>
+    </div>
+
+    <script src="simulation.js"></script>
 </body>
+:root {
+    --bg: #0a0e14;
+    --panel: rgba(20, 25, 35, 0.7);
+    --accent: #00f2ff;
+    --danger: #ff3e3e;
+    --text: #e0e6ed;
+    --font-mono: 'Space Mono', monospace;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    overflow: hidden;
+}
+
+#app {
+    display: grid;
+    grid-template-columns: 320px 1fr;
+    grid-template-rows: 1fr 300px;
+    height: 100vh;
+    gap: 10px;
+    padding: 10px;
+}
+
+.glass {
+    background: var(--panel);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    padding: 20px;
+}
+
+/* Sidebar */
+.controls {
+    grid-row: 1 / 3;
+    display: flex;
+    flex-direction: column;
+    gap: 25px;
+    overflow-y: auto;
+}
+
+.brand h1 {
+    font-size: 1.5rem;
+    letter-spacing: 2px;
+    color: var(--accent);
+}
+
+.badge {
+    font-size: 0.7rem;
+    background: rgba(0, 242, 255, 0.1);
+    padding: 2px 6px;
+    border-radius: 4px;
+}
+
+.control-group h3 {
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    margin-bottom: 15px;
+    color: #8892b0;
+}
+
+.input-field {
+    margin-bottom: 15px;
+}
+
+.input-field label {
+    display: block;
+    font-size: 0.85rem;
+    margin-bottom: 8px;
+}
+
+input[type="range"] {
+    width: 100%;
+    accent-color: var(--accent);
+}
+
+.metrics {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+}
+
+.metric-card {
+    background: rgba(0, 0, 0, 0.3);
+    padding: 10px;
+    border-radius: 8px;
+    text-align: center;
+}
+
+.metric-card .label { font-size: 0.65rem; display: block; margin-bottom: 4px;}
+.metric-card .value { font-weight: bold; color: var(--accent); }
+
+/* Main Simulation */
+.viewport-container {
+    position: relative;
+    background: #000;
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+#canvas-container { width: 100%; height: 100%; }
+
+.overlay-ui {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    pointer-events: none;
+}
+
+.legend {
+    font-size: 0.7rem;
+    letter-spacing: 3px;
+    opacity: 0.5;
+}
+
+/* Analytics */
+.analytics {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+}
+
+.chart-container {
+    position: relative;
+    height: 100%;
+}
+
+/* Animations */
+.res-active {
+    color: var(--danger) !important;
+    text-shadow: 0 0 10px var(--danger);
+    animation: pulse 1s infinite;
+}
+
+@keyframes pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.5; }
+    100% { opacity: 1; }
+}
+/**
+ * VIBESIM CORE ENGINE
+ * Professional Vibration Simulator
+ */
+
+class PhysicsEngine {
+    constructor() {
+        this.params = {
+            m: 2.0,
+            k: 200,
+            c: 1.5,
+            w: 5.0,
+            f0: 10
+        };
+        this.state = { x: 0, v: 0, t: 0 };
+    }
+
+    calculateSteadyState(omega) {
+        const { m, k, c, f0 } = this.params;
+        // X = F0 / sqrt((k - m*w^2)^2 + (c*w)^2)
+        const denom = Math.sqrt(Math.pow(k - m * Math.pow(omega, 2), 2) + Math.pow(c * omega, 2));
+        return f0 / denom;
+    }
+
+    getNaturalFrequency() {
+        return Math.sqrt(this.params.k / this.params.m);
+    }
+
+    update(dt) {
+        const { m, k, c, w, f0 } = this.params;
+        
+        // Use 4th Order Runge-Kutta for high precision stability
+        const f = (x, v, t) => (f0 * Math.sin(w * t) - c * v - k * x) / m;
+
+        const k1v = f(this.state.x, this.state.v, this.state.t);
+        const k1x = this.state.v;
+
+        const k2v = f(this.state.x + 0.5 * dt * k1x, this.state.v + 0.5 * dt * k1v, this.state.t + 0.5 * dt);
+        const k2x = this.state.v + 0.5 * dt * k1v;
+
+        const k3v = f(this.state.x + 0.5 * dt * k2x, this.state.v + 0.5 * dt * k2v, this.state.t + 0.5 * dt);
+        const k3x = this.state.v + 0.5 * dt * k2v;
+
+        const k4v = f(this.state.x + dt * k3x, this.state.v + dt * k3v, this.state.t + dt);
+        const k4x = this.state.v + dt * k3v;
+
+        this.state.v += (dt / 6) * (k1v + 2 * k2v + 2 * k3v + k4v);
+        this.state.x += (dt / 6) * (k1x + 2 * k2x + 2 * k3x + k4x);
+        this.state.t += dt;
+
+        return this.state.x;
+    }
+}
+
+class SimulationApp {
+    constructor() {
+        this.engine = new PhysicsEngine();
+        this.initThree();
+        this.initCharts();
+        this.bindEvents();
+        this.animate();
+    }
+
+    initThree() {
+        this.scene = new THREE.Scene();
+        this.camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+        this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        
+        const container = document.getElementById('canvas-container');
+        this.renderer.setSize(container.clientWidth, container.clientHeight);
+        this.renderer.setPixelRatio(window.devicePixelRatio);
+        container.appendChild(this.renderer.domElement);
+
+        // Lighting
+        const ambientLight = new THREE.AmbientLight(0x404040, 2);
+        const spotLight = new THREE.SpotLight(0x00f2ff, 5);
+        spotLight.position.set(5, 10, 5);
+        this.scene.add(ambientLight, spotLight);
+
+        // Models
+        // 1. Base
+        const baseGeo = new THREE.BoxGeometry(3, 0.2, 3);
+        const baseMat = new THREE.MeshPhongMaterial({ color: 0x1a1a1a });
+        this.base = new THREE.Mesh(baseGeo, baseMat);
+        this.scene.add(this.base);
+
+        // 2. Toy Head (The Mass)
+        const headGeo = new THREE.SphereGeometry(0.6, 32, 32);
+        const headMat = new THREE.MeshStandardMaterial({ color: 0x00f2ff, metalness: 0.7, roughness: 0.2 });
+        this.head = new THREE.Mesh(headGeo, headMat);
+        this.scene.add(this.head);
+
+        // 3. Spring (Procedural)
+        this.springPoints = [];
+        for(let i=0; i<=100; i++) this.springPoints.push(new THREE.Vector3(0, i/10, 0));
+        this.springGeo = new THREE.BufferGeometry().setFromPoints(this.springPoints);
+        this.springMat = new THREE.LineBasicMaterial({ color: 0xffffff });
+        this.springLine = new THREE.Line(this.springGeo, this.springMat);
+        this.scene.add(this.springLine);
+
+        this.camera.position.set(6, 4, 8);
+        this.camera.lookAt(0, 1.5, 0);
+    }
+
+    updateSpring(height) {
+        const positions = [];
+        const turns = 10;
+        const radius = 0.3;
+        for (let i = 0; i <= 100; i++) {
+            const t = i / 100;
+            const angle = t * Math.PI * 2 * turns;
+            positions.push(
+                Math.cos(angle) * radius,
+                t * height,
+                Math.sin(angle) * radius
+            );
+        }
+        this.springLine.geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+    }
+
+    initCharts() {
+        const ctxFreq = document.getElementById('freqChart').getContext('2d');
+        const ctxTime = document.getElementById('timeChart').getContext('2d');
+
+        const chartOptions = {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: { grid: { color: '#222' }, ticks: { color: '#888' } },
+                x: { grid: { color: '#222' }, ticks: { color: '#888' } }
+            },
+            plugins: { legend: { display: false } },
+            animation: false
+        };
+
+        this.freqChart = new Chart(ctxFreq, {
+            type: 'line',
+            data: { labels: [], datasets: [{ label: 'Amplitude', borderColor: '#00f2ff', data: [], fill: true, backgroundColor: 'rgba(0, 242, 255, 0.1)', tension: 0.4 }] },
+            options: { ...chartOptions, plugins: { title: { display: true, text: 'Frequency Response (Bode)', color: '#fff' } } }
+        });
+
+        this.timeChart = new Chart(ctxTime, {
+            type: 'line',
+            data: { labels: Array(100).fill(''), datasets: [{ label: 'Displacement', borderColor: '#ff3e3e', data: Array(100).fill(0), pointRadius: 0 }] },
+            options: { ...chartOptions, plugins: { title: { display: true, text: 'Time Domain Response', color: '#fff' } } }
+        });
+    }
+
+    updateUI() {
+        const fn = this.engine.getNaturalFrequency();
+        const w = this.engine.params.w;
+        
+        document.getElementById('res-fn').innerText = (fn / (2 * Math.PI)).toFixed(2) + ' Hz';
+        
+        const isResonant = Math.abs(w - fn) < 0.5;
+        const statusEl = document.getElementById('res-status');
+        const alertEl = document.getElementById('resonance-alert');
+        
+        if (isResonant) {
+            statusEl.innerText = "RESONANCE";
+            alertEl.classList.add('res-active');
+        } else {
+            statusEl.innerText = "STABLE";
+            alertEl.classList.remove('res-active');
+        }
+
+        // Update Charts
+        const freqData = [];
+        const labels = [];
+        for (let i = 0; i < 30; i += 0.5) {
+            labels.push(i.toFixed(1));
+            freqData.push(this.engine.calculateSteadyState(i));
+        }
+        this.freqChart.data.labels = labels;
+        this.freqChart.data.datasets[0].data = freqData;
+        this.freqChart.update();
+    }
+
+    bindEvents() {
+        const inputs = ['mass', 'stiffness', 'damping', 'frequency', 'force'];
+        inputs.forEach(id => {
+            const el = document.getElementById(id);
+            el.addEventListener('input', (e) => {
+                const val = parseFloat(e.target.value);
+                document.getElementById(`val-${id}`).innerText = val;
+                
+                // Map inputs to engine params
+                const map = { mass: 'm', stiffness: 'k', damping: 'c', frequency: 'w', force: 'f0' };
+                this.engine.params[map[id]] = val;
+                this.updateUI();
+            });
+        });
+        this.updateUI();
+    }
+
+    animate() {
+        requestAnimationFrame(() => this.animate());
+
+        const displacement = this.engine.update(0.016); // ~60fps
+        const baseHeight = 2.0;
+        
+        // Physics logic: The head's vertical position is baseHeight + displacement
+        this.head.position.y = baseHeight + displacement;
+        this.updateSpring(baseHeight + displacement);
+
+        // Update Time Chart
+        this.timeChart.data.datasets[0].data.push(displacement);
+        this.timeChart.data.datasets[0].data.shift();
+        this.timeChart.update('none');
+
+        this.renderer.render(this.scene, this.camera);
+    }
+}
+
+// Launch
+window.addEventListener('load', () => {
+    new SimulationApp();
+});
 </html>
