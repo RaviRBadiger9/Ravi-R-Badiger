@@ -2,197 +2,202 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>HUD_VIBE // Tactical Dynamics</title>
+    <title>DriveSense // Vehicle Dynamics</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/0.160.0/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         :root {
-            --glass: rgba(15, 20, 25, 0.85);
-            --neon: #00f2ff;
-            --danger: #ff0055;
-            --text: #ffffff;
+            --panel: #1a1a1d;
+            --accent: #ff3e3e;
+            --trim: #444;
+            --screen: #0a0a0a;
         }
 
-        body, html { margin: 0; padding: 0; height: 100%; overflow: hidden; font-family: 'Orbitron', 'Segoe UI', sans-serif; background: #000; }
+        body, html { margin: 0; padding: 0; height: 100%; background: #000; font-family: 'Inter', sans-serif; overflow: hidden; color: #fff; }
 
-        /* Full Screen 3D Background */
-        #viewport { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; }
-
-        /* Floating HUD Controls */
-        #hud-left {
-            position: absolute; top: 20px; left: 20px; width: 280px;
-            background: var(--glass); border: 1px solid rgba(255,255,255,0.1);
-            backdrop-filter: blur(10px); padding: 20px; border-radius: 4px;
-            z-index: 10; color: var(--text);
-            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+        /* Dashboard Layout */
+        #dashboard-frame {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            border: 15px solid #111;
+            box-sizing: border-box;
         }
 
-        /* Bottom Telemetry Bar */
-        #hud-bottom {
-            position: absolute; bottom: 20px; left: 20px; right: 20px; height: 180px;
-            display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px;
-            z-index: 10; pointer-events: none;
+        /* Top 3D Viewport */
+        #view-area {
+            flex: 1;
+            position: relative;
+            background: radial-gradient(circle at center, #222 0%, #000 100%);
+            border-bottom: 5px solid var(--trim);
         }
 
-        .chart-module {
-            background: var(--glass); border-top: 2px solid var(--neon);
-            backdrop-filter: blur(5px); padding: 10px; pointer-events: auto;
+        /* Bottom Console */
+        #console-area {
+            height: 320px;
+            background: var(--panel);
+            display: grid;
+            grid-template-columns: 300px 1fr 300px;
+            padding: 20px;
+            gap: 20px;
         }
 
-        .hud-label { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 2px; color: var(--neon); margin-bottom: 10px; }
-        .val-display { float: right; font-family: monospace; color: #fff; }
+        /* Control Stack */
+        .stack { display: flex; flex-direction: column; gap: 15px; }
+        .control-knob { background: var(--screen); padding: 10px; border-radius: 8px; border: 1px solid var(--trim); }
+        .label { font-size: 0.65rem; color: #888; text-transform: uppercase; margin-bottom: 5px; letter-spacing: 1px; }
+        .value { color: var(--accent); font-family: monospace; font-weight: bold; float: right; }
 
-        input[type="range"] { 
-            width: 100%; margin-top: 10px; appearance: none; background: #333; height: 2px; 
-        }
-        input[type="range"]::-webkit-slider-thumb { 
-            appearance: none; width: 12px; height: 12px; background: var(--neon); border-radius: 2px; cursor: pointer;
-        }
+        input[type="range"] { width: 100%; accent-color: var(--accent); }
 
-        .sys-info { margin-top: 20px; font-size: 0.7rem; border-top: 1px solid #333; padding-top: 10px; opacity: 0.7; }
+        /* Telemetry Screens */
+        #telemetry-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 15px;
+        }
+        .screen { background: var(--screen); border: 2px solid #222; border-radius: 4px; padding: 5px; position: relative; }
+        
+        /* HUD Badge */
+        #hud-overlay {
+            position: absolute; top: 20px; right: 20px;
+            text-align: right; pointer-events: none;
+        }
+        .speedo { font-size: 2rem; font-weight: 900; color: var(--accent); }
     </style>
 </head>
 <body>
 
-<div id="viewport"></div>
-
-<div id="hud-left">
-    <div class="hud-label" style="font-size: 0.9rem; margin-bottom: 20px;">Kinetic_Analyzer_v9</div>
-    
-    <div class="ctrl">
-        <div class="hud-label">Mass <span class="val-display" id="v-m">2.0 kg</span></div>
-        <input type="range" id="m" min="0.5" max="10" step="0.1" value="2.0">
+<div id="dashboard-frame">
+    <div id="view-area">
+        <div id="canvas-3d" style="width:100%; height:100%;"></div>
+        <div id="hud-overlay">
+            <div class="label">Instant Momentum</div>
+            <div class="speedo" id="mom-val">0.00</div>
+            <div class="label">P-UNIT (kg·m/s)</div>
+        </div>
     </div>
 
-    <div class="ctrl" style="margin-top:15px;">
-        <div class="hud-label">Stiffness <span class="val-display" id="v-k">200 N/m</span></div>
-        <input type="range" id="k" min="50" max="1000" step="10" value="200">
-    </div>
+    <div id="console-area">
+        <div class="stack">
+            <div class="label" style="font-weight: bold; color: #fff;">Suspension Tuning</div>
+            <div class="control-knob">
+                <div class="label">Vehicle Mass <span class="value" id="out-m">2.0 kg</span></div>
+                <input type="range" id="m" min="0.5" max="10" step="0.1" value="2.0">
+            </div>
+            <div class="control-knob">
+                <div class="label">Spring Rate (k) <span class="value" id="out-k">200 N/m</span></div>
+                <input type="range" id="k" min="50" max="1000" step="10" value="200">
+            </div>
+        </div>
 
-    <div class="ctrl" style="margin-top:15px;">
-        <div class="hud-label">Damping <span class="val-display" id="v-c">1.0 Ns/m</span></div>
-        <input type="range" id="c" min="0" max="10" step="0.1" value="1.0">
-    </div>
+        <div id="telemetry-grid">
+            <div class="screen"><canvas id="cX"></canvas></div>
+            <div class="screen"><canvas id="cV"></canvas></div>
+            <div class="screen"><canvas id="cP"></canvas></div>
+        </div>
 
-    <div class="ctrl" style="margin-top:15px;">
-        <div class="hud-label">Freq <span class="val-display" id="v-w">5.0 rad/s</span></div>
-        <input type="range" id="w" min="0" max="30" step="0.5" value="5.0">
+        <div class="stack">
+            <div class="label" style="font-weight: bold; color: #fff;">Road Conditions</div>
+            <div class="control-knob">
+                <div class="label">Damping (c) <span class="value" id="out-c">1.0 Ns/m</span></div>
+                <input type="range" id="c" min="0" max="10" step="0.1" value="1.0">
+            </div>
+            <div class="control-knob">
+                <div class="label">Bumpy Freq (ω) <span class="value" id="out-w">5.0 rad/s</span></div>
+                <input type="range" id="w" min="0" max="30" step="0.5" value="5.0">
+            </div>
+        </div>
     </div>
-
-    <div class="sys-info">
-        STATUS: <span id="sys-status" style="color:var(--neon)">ACTIVE</span><br>
-        SOLVER: RK4_INTEGRATOR
-    </div>
-</div>
-
-<div id="hud-bottom">
-    <div class="chart-module"><canvas id="cX"></canvas></div>
-    <div class="chart-module"><canvas id="cV"></canvas></div>
-    <div class="chart-module"><canvas id="cP"></canvas></div>
 </div>
 
 <script>
     // --- PHYSICS KERNEL ---
-    class Dynamics {
+    class CarPhysics {
         constructor() {
             this.m = 2; this.k = 200; this.c = 1; this.w = 5; this.f0 = 30;
             this.x = 0; this.v = 0; this.t = 0;
         }
-        step(dt) {
-            const accel = (x, v, t) => (this.f0 * Math.sin(this.w * t) - this.c * v - this.k * x) / this.m;
-            const k1v = accel(this.x, this.v, this.t);
-            const k2v = accel(this.x, this.v + k1v*dt*0.5, this.t + dt*0.5);
-            this.v += k2v * dt;
+        update(dt) {
+            const accel = (this.f0 * Math.sin(this.w * this.t) - this.c * this.v - this.k * this.x) / this.m;
+            this.v += accel * dt;
             this.x += this.v * dt;
             this.t += dt;
             return { x: this.x, v: this.v, p: this.m * this.v };
         }
     }
 
-    // --- SCENE SETUP ---
+    // --- 3D SCENE ---
+    const container = document.getElementById('canvas-3d');
     const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
-    const renderer = new THREE.WebGLRenderer({ antialias: true });
-    renderer.setSize(window.innerWidth, window.innerHeight);
-    document.getElementById('viewport').appendChild(renderer.domElement);
+    const camera = new THREE.PerspectiveCamera(40, container.clientWidth/container.clientHeight, 0.1, 1000);
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    renderer.setSize(container.clientWidth, container.clientHeight);
+    container.appendChild(renderer.domElement);
 
     scene.add(new THREE.AmbientLight(0xffffff, 0.4));
-    const spot = new THREE.PointLight(0x00f2ff, 100); spot.position.set(5, 5, 5);
-    scene.add(spot);
+    const sun = new THREE.DirectionalLight(0xffffff, 1.5); sun.position.set(5, 10, 5);
+    scene.add(sun);
 
-    // Grid Floor
-    const grid = new THREE.GridHelper(20, 20, 0x333333, 0x111111);
-    scene.add(grid);
+    // Dashboard Plate
+    const plate = new THREE.Mesh(new THREE.CylinderGeometry(4, 4, 0.2, 32), new THREE.MeshStandardMaterial({color: 0x111111, metalness: 0.8}));
+    scene.add(plate);
 
     // Car Asset
     const car = new THREE.Group();
-    const chassis = new THREE.Mesh(new THREE.BoxGeometry(2, 0.4, 1), new THREE.MeshStandardMaterial({color: 0x222222, metalness: 0.9}));
-    const neonLine = new THREE.Mesh(new THREE.BoxGeometry(2.1, 0.05, 1.05), new THREE.MeshBasicMaterial({color: 0x00f2ff}));
-    car.add(chassis, neonLine);
+    const body = new THREE.Mesh(new THREE.BoxGeometry(2, 0.5, 1), new THREE.MeshStandardMaterial({color: 0xff3e3e, metalness: 0.9, roughness: 0.2}));
+    const cabin = new THREE.Mesh(new THREE.BoxGeometry(1, 0.4, 0.8), new THREE.MeshStandardMaterial({color: 0x222222}));
+    cabin.position.y = 0.4;
+    car.add(body, cabin);
     scene.add(car);
 
-    // Spring Visual
-    const spring = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 1, 8), new THREE.MeshBasicMaterial({color: 0x444444, wireframe: true}));
+    // Spring Asset
+    const spring = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 1, 12), new THREE.MeshStandardMaterial({color: 0x888888, wireframe: true}));
     scene.add(spring);
 
-    camera.position.set(6, 4, 8);
+    camera.position.set(8, 6, 12);
     camera.lookAt(0, 1.5, 0);
 
     // --- TELEMETRY ---
-    const chartCfg = (id, label) => new Chart(document.getElementById(id), {
+    const chartConfig = (id, label, color) => new Chart(document.getElementById(id), {
         type: 'line',
-        data: { labels: Array(40).fill(''), datasets: [{ label: label, data: Array(40).fill(0), borderColor: '#00f2ff', borderWidth: 1.5, pointRadius: 0 }] },
-        options: { responsive: true, maintainAspectRatio: false, scales: { x: { display: false }, y: { display: false } }, plugins: { legend: { display: true, labels: { color: '#00f2ff', font: { size: 10 } } } } }
+        data: { labels: Array(30).fill(''), datasets: [{ label: label, data: Array(30).fill(0), borderColor: color, borderWidth: 2, pointRadius: 0 }] },
+        options: { responsive: true, maintainAspectRatio: false, scales: { x: { display: false }, y: { grid: { color: '#222' } } }, plugins: { legend: { labels: { color: '#888', font: { size: 9 } } } } }
     });
 
-    const charts = { x: chartCfg('cX', 'POS [m]'), v: chartCfg('cV', 'VEL [m/s]'), p: chartCfg('cP', 'MOM [kg·m/s]') };
+    const charts = { x: chartConfig('cX', 'HEIGHT', '#fff'), v: chartConfig('cV', 'VELOCITY', '#ff3e3e'), p: chartConfig('cP', 'MOMENTUM', '#555') };
 
-    // --- CONTROL LOGIC ---
-    const physics = new Dynamics();
-    ['m','k','c','w'].forEach(p => {
-        document.getElementById(p).oninput = (e) => {
-            physics[p] = parseFloat(e.target.value);
-            document.getElementById('v-'+p).innerText = physics[p].toFixed(1) + (p==='m'?' kg':p==='k'?' N/m':p==='c'?' Ns/m':' rad/s');
+    // --- SYSTEM LOGIC ---
+    const physics = new CarPhysics();
+    ['m','k','c','w'].forEach(id => {
+        document.getElementById(id).oninput = (e) => {
+            physics[id] = parseFloat(e.target.value);
+            document.getElementById('out-'+id).innerText = physics[id].toFixed(1);
         };
     });
 
-    function animate() {
-        requestAnimationFrame(animate);
-        const data = physics.step(0.016);
+    function loop() {
+        requestAnimationFrame(loop);
+        const d = physics.update(0.016);
         
-        const yBase = 2.5;
-        car.position.y = yBase + data.x;
-        spring.scale.y = yBase + data.x;
-        spring.position.y = (yBase + data.x) / 2;
+        // Update 3D
+        car.position.y = 2.5 + d.x;
+        spring.scale.y = 2.5 + d.x;
+        spring.position.y = (2.5 + d.x) / 2;
 
         // Update HUD
-        const keys = ['x', 'v', 'p'];
-        keys.forEach(k => {
-            charts[k].data.datasets[0].data.push(data[k]);
+        document.getElementById('mom-val').innerText = Math.abs(d.p).toFixed(2);
+
+        // Update Charts
+        [['x', d.x], ['v', d.v], ['p', d.p]].forEach(([k, v]) => {
+            charts[k].data.datasets[0].data.push(v);
             charts[k].data.datasets[0].data.shift();
             charts[k].update('none');
         });
 
-        // Resonance Check
-        const fn = Math.sqrt(physics.k / physics.m);
-        const status = document.getElementById('sys-status');
-        if(Math.abs(physics.w - fn) < 1) {
-            status.innerText = "CRITICAL_RESONANCE";
-            status.style.color = "#ff0055";
-        } else {
-            status.innerText = "ACTIVE";
-            status.style.color = "#00f2ff";
-        }
-
         renderer.render(scene, camera);
     }
-    animate();
-
-    window.onresize = () => {
-        camera.aspect = window.innerWidth / window.innerHeight;
-        camera.updateProjectionMatrix();
-        renderer.setSize(window.innerWidth, window.innerHeight);
-    };
+    loop();
 </script>
 </body>
 </html>
