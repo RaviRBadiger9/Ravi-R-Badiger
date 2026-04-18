@@ -1,23 +1,57 @@
-const express = require('express');
-const path = require('path');
-const app = express();
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Dashboard Toy Damping</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; }
+    h1 { color: #2c3e50; }
+    input, button { margin: 5px; padding: 8px; }
+    #result { margin-top: 15px; font-weight: bold; }
+    canvas { border: 1px solid #ccc; margin-top: 20px; }
+  </style>
+</head>
+<body>
+  <h1>Dashboard Toy Damping Calculator</h1>
+  <p>Enter values to calculate damping:</p>
+  <input type="number" id="mass" placeholder="Mass (kg)">
+  <input type="number" id="spring" placeholder="Spring stiffness (N/m)">
+  <input type="number" id="zeta" placeholder="Damping ratio">
+  <button onclick="calculate()">Calculate</button>
 
-app.use(express.json());
-app.use(express.static(path.join(__dirname, 'public')));
+  <p id="result"></p>
+  <canvas id="graph" width="400" height="200"></canvas>
 
-app.post('/calculate', (req, res) => {
-  const { mass, spring, zeta } = req.body;
-  const omega_n = Math.sqrt(spring/mass);
-  const c_cr = 2*mass*omega_n;
-  const c = zeta*c_cr;
+  <script>
+    async function calculate() {
+      let m = parseFloat(document.getElementById("mass").value);
+      let k = parseFloat(document.getElementById("spring").value);
+      let zeta = parseFloat(document.getElementById("zeta").value);
 
-  res.json({
-    omega_n: omega_n.toFixed(2),
-    c_cr: c_cr.toFixed(2),
-    c: c.toFixed(2)
-  });
-});
+      // Call backend API
+      let res = await fetch('/calculate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mass: m, spring: k, zeta: zeta })
+      });
+      let data = await res.json();
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+      document.getElementById("result").innerText =
+        `Natural frequency: ${data.omega_n} rad/s
+         Critical damping: ${data.c_cr} Ns/m
+         Required damping: ${data.c} Ns/m`;
 
+      // Simple response curve
+      let ctx = document.getElementById("graph").getContext("2d");
+      ctx.clearRect(0,0,400,200);
+      ctx.beginPath();
+      ctx.moveTo(0,100);
+      for(let t=0; t<400; t++){
+        let x = Math.exp(-zeta*data.omega_n*(t/50)) * Math.cos(data.omega_n*(t/50));
+        ctx.lineTo(t,100 - x*50);
+      }
+      ctx.stroke();
+    }
+  </script>
+</body>
+</html>
