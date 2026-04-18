@@ -3,352 +3,390 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VIBESIM // OVERDRIVE X1</title>
+    <title>VibeSim Studio | Engineering Edition</title>
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/0.160.0/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
 
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=JetBrains+Mono:wght@300;500&display=swap');
-
         :root {
-            --neon-blue: #00f2ff;
-            --neon-pink: #ff00ff;
-            --deep-space: #05070a;
-            --panel-bg: rgba(10, 15, 25, 0.95);
-            --border-glow: rgba(0, 242, 255, 0.3);
+            --bg-deep: #0f172a;
+            --glass: rgba(30, 41, 59, 0.7);
+            --accent-cyan: #22d3ee;
+            --accent-red: #ef4444;
+            --text-main: #f1f5f9;
+            --text-dim: #94a3b8;
         }
 
-        * { margin: 0; padding: 0; box-sizing: border-box; cursor: crosshair; }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
 
         body {
-            background-color: var(--deep-space);
-            color: #fff;
-            font-family: 'JetBrains Mono', monospace;
-            height: 100vh;
+            background: var(--bg-deep);
+            color: var(--text-main);
+            font-family: 'Inter', -apple-system, sans-serif;
             overflow: hidden;
+            height: 100vh;
+        }
+
+        #dashboard {
+            display: grid;
+            grid-template-columns: 350px 1fr;
+            grid-template-rows: 1fr 320px;
+            height: 100vh;
+            gap: 15px;
+            padding: 15px;
+        }
+
+        .glass-panel {
+            background: var(--glass);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 16px;
+            padding: 24px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+
+        /* Control Column */
+        .sidebar {
+            grid-row: 1 / 3;
             display: flex;
             flex-direction: column;
+            gap: 20px;
+            overflow-y: auto;
         }
 
-        /* Top HUD */
-        header {
-            height: 60px;
-            border-bottom: 1px solid var(--border-glow);
+        .header h1 {
+            font-size: 1.5rem;
+            letter-spacing: -1px;
+            background: linear-gradient(to right, #22d3ee, #818cf8);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .section-title {
+            font-size: 0.7rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-dim);
+            margin-bottom: 15px;
             display: flex;
             align-items: center;
-            padding: 0 30px;
-            justify-content: space-between;
-            background: linear-gradient(90deg, #0a0f19 0%, #000 100%);
+            gap: 8px;
         }
 
-        .logo { font-family: 'Orbitron', sans-serif; letter-spacing: 5px; color: var(--neon-blue); font-weight: 700; }
+        .section-title::after { content: ""; flex: 1; height: 1px; background: rgba(255,255,255,0.05); }
 
-        #main-layout {
+        .slider-box { margin-bottom: 20px; }
+        .label-row { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 0.85rem; }
+        .val-pill { color: var(--accent-cyan); font-family: monospace; font-weight: bold; }
+
+        input[type="range"] {
+            width: 100%;
+            height: 5px;
+            background: #334155;
+            border-radius: 10px;
+            appearance: none;
+            accent-color: var(--accent-cyan);
+        }
+
+        /* 3D Viewport */
+        .simulation-view {
+            position: relative;
+            background: radial-gradient(circle at center, #1e293b 0%, #0f172a 100%);
+            border-radius: 16px;
+            border: 1px solid rgba(255,255,255,0.05);
+        }
+
+        #three-canvas { width: 100%; height: 100%; border-radius: 16px; }
+
+        .viz-overlay {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            pointer-events: none;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+        }
+
+        /* Analytics Footer */
+        .analytics {
             display: grid;
-            grid-template-columns: 380px 1fr 380px;
-            flex: 1;
-            padding: 15px;
+            grid-template-columns: 1fr 1fr;
             gap: 15px;
         }
 
-        .panel {
-            background: var(--panel-bg);
-            border: 1px solid rgba(255, 255, 255, 0.05);
-            border-radius: 4px;
-            padding: 20px;
-            position: relative;
-            box-shadow: inset 0 0 20px rgba(0,0,0,0.5);
+        .chart-box { position: relative; height: 100%; width: 100%; }
+
+        /* Resonance Visual Alert */
+        .status-badge {
+            background: rgba(0,0,0,0.3);
+            padding: 8px 12px;
+            border-radius: 8px;
+            border-left: 3px solid var(--accent-cyan);
+            margin-top: auto;
         }
 
-        .panel::before {
-            content: ""; position: absolute; top: 0; left: 0; width: 10px; height: 10px;
-            border-top: 2px solid var(--neon-blue); border-left: 2px solid var(--neon-blue);
-        }
+        .critical { border-left-color: var(--accent-red); animation: pulse 1s infinite alternate; }
 
-        h2 { font-family: 'Orbitron', sans-serif; font-size: 0.8rem; margin-bottom: 20px; color: var(--neon-pink); text-transform: uppercase; }
-
-        /* Controls Overhaul */
-        .control-row { margin-bottom: 20px; }
-        label { display: block; font-size: 10px; color: #888; margin-bottom: 8px; }
-        
-        input[type="range"] {
-            -webkit-appearance: none; width: 100%; background: transparent;
-        }
-        input[type="range"]::-webkit-slider-runnable-track {
-            background: #1a202c; height: 2px;
-        }
-        input[type="range"]::-webkit-slider-thumb {
-            -webkit-appearance: none; height: 14px; width: 14px; background: var(--neon-blue);
-            margin-top: -6px; border-radius: 0; box-shadow: 0 0 10px var(--neon-blue);
-        }
-
-        .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 20px; }
-        .stat-box { background: #000; padding: 15px; border-left: 2px solid var(--neon-blue); }
-        .stat-label { font-size: 9px; color: #555; display: block; }
-        .stat-value { font-size: 1.2rem; color: var(--neon-blue); font-family: 'Orbitron'; }
-
-        /* Viewport */
-        #viewport {
-            grid-column: 2;
-            position: relative;
-            background: #000;
-            border: 1px solid var(--border-glow);
-        }
-
-        canvas { width: 100% !important; height: 100% !important; }
-
-        /* Chart Vertical Stack */
-        .right-sidebar { display: flex; flex-direction: column; gap: 15px; }
-        .chart-container { flex: 1; min-height: 0; }
-
-        .resonance-warning {
-            position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
-            background: rgba(255, 0, 255, 0.2); border: 1px solid var(--neon-pink);
-            padding: 10px 30px; color: var(--neon-pink); font-size: 12px;
-            display: none; clip-path: polygon(10% 0, 100% 0, 90% 100%, 0 100%);
-        }
+        @keyframes pulse { from { opacity: 1; } to { opacity: 0.5; } }
     </style>
 </head>
 <body>
 
-    <header>
-        <div class="logo">VIBESIM // OD-X1</div>
-        <div id="system-time" style="font-size: 12px; color: var(--neon-blue)">CORE_STABLE_001</div>
-    </header>
+<div id="dashboard">
+    <aside class="sidebar glass-panel">
+        <div class="header">
+            <h1>VibeSim Studio</h1>
+            <p style="font-size: 0.7rem; color: var(--text-dim)">Vibration-Driven System v4.0</p>
+        </div>
 
-    <div id="main-layout">
-        <aside class="panel">
-            <h2>System Calibration</h2>
-            
-            <div class="control-row">
-                <label>INERTIAL MASS (kg)</label>
-                <input type="range" id="mass" min="1" max="20" step="0.1" value="5">
+        <div class="control-group">
+            <h3 class="section-title">Physical Constants</h3>
+            <div class="slider-box">
+                <div class="label-row"><span>Mass (m)</span> <span class="val-pill" id="val-mass">2.0 kg</span></div>
+                <input type="range" id="mass" min="0.5" max="10" step="0.1" value="2">
             </div>
-            
-            <div class="control-row">
-                <label>TENSION STIFFNESS (N/m)</label>
-                <input type="range" id="stiffness" min="100" max="2000" step="10" value="500">
+            <div class="slider-box">
+                <div class="label-row"><span>Stiffness (k)</span> <span class="val-pill" id="val-stiffness">200 N/m</span></div>
+                <input type="range" id="stiffness" min="50" max="1000" step="10" value="200">
             </div>
-
-            <div class="control-row">
-                <label>DAMPING COEFFICIENT</label>
-                <input type="range" id="damping" min="0.1" max="15" step="0.1" value="2">
-            </div>
-
-            <hr style="border: 0; border-top: 1px solid #111; margin: 25px 0;">
-
-            <h2>Excitation Matrix</h2>
-            
-            <div class="control-row">
-                <label>INPUT FREQUENCY (rad/s)</label>
-                <input type="range" id="frequency" min="0" max="50" step="0.1" value="10">
-            </div>
-
-            <div class="control-row">
-                <label>MAGNITUDE (N)</label>
-                <input type="range" id="force" min="0" max="100" step="1" value="30">
-            </div>
-
-            <div class="stat-grid">
-                <div class="stat-box">
-                    <span class="stat-label">NATURAL FREQ</span>
-                    <div class="stat-value" id="val-fn">--</div>
-                </div>
-                <div class="stat-box">
-                    <span class="stat-label">AMPLITUDE</span>
-                    <div class="stat-value" id="val-amp">--</div>
-                </div>
-            </div>
-        </aside>
-
-        <main id="viewport">
-            <div id="three-container"></div>
-            <div class="resonance-warning" id="resonance-ui">WARNING: RESONANCE CASCADE IMMINENT</div>
-        </main>
-
-        <div class="right-sidebar">
-            <div class="panel chart-container">
-                <h2>Phase Space Analysis</h2>
-                <canvas id="phaseChart"></canvas>
-            </div>
-            <div class="panel chart-container">
-                <h2>Time-Domain Trace</h2>
-                <canvas id="timeChart"></canvas>
+            <div class="slider-box">
+                <div class="label-row"><span>Damping (c)</span> <span class="val-pill" id="val-damping">1.0 Ns/m</span></div>
+                <input type="range" id="damping" min="0.1" max="5" step="0.1" value="1">
             </div>
         </div>
-    </div>
+
+        <div class="control-group">
+            <h3 class="section-title">Force Driver</h3>
+            <div class="slider-box">
+                <div class="label-row"><span>Frequency (ω)</span> <span class="val-pill" id="val-frequency">5.0 rad/s</span></div>
+                <input type="range" id="frequency" min="0" max="40" step="0.1" value="5">
+            </div>
+            <div class="slider-box">
+                <div class="label-row"><span>Amplitude (F₀)</span> <span class="val-pill" id="val-force">10 N</span></div>
+                <input type="range" id="force" min="0" max="50" step="1" value="10">
+            </div>
+        </div>
+
+        <div class="status-badge" id="resonance-alert">
+            <span style="font-size: 0.65rem; color: var(--text-dim); display: block;">NATURAL FREQUENCY</span>
+            <span id="txt-fn" style="font-weight: bold; font-family: monospace;">10.00 rad/s</span>
+            <div id="txt-status" style="font-size: 0.75rem; margin-top: 5px; color: var(--accent-cyan);">System: Stable</div>
+        </div>
+    </aside>
+
+    <main class="simulation-view">
+        <div id="three-canvas"></div>
+        <div class="viz-overlay">
+            <div style="font-size: 0.7rem; letter-spacing: 2px; color: var(--text-dim);">LIVE_VEC_SIMULATION</div>
+        </div>
+    </main>
+
+    <footer class="analytics glass-panel">
+        <div class="chart-box">
+            <canvas id="timeTrace"></canvas>
+        </div>
+        <div class="chart-box">
+            <canvas id="bodePlot"></canvas>
+        </div>
+    </footer>
+</div>
 
 <script>
 /**
- * RE-ENGINEERED PHYSICS: 2D FORCED HARMONIC OSCILLATION
+ * PHYSICAL SOLVER (forced damp harmonic oscillation)
  */
-class CoreEngine {
+class SystemDynamics {
     constructor() {
-        this.params = { m: 5, k: 500, c: 2, w: 10, f0: 30 };
-        this.pos = { x: 0, v: 0, t: 0 };
-        this.history = [];
+        this.m = 2.0; this.k = 200.0; this.c = 1.0; 
+        this.w = 5.0; this.f0 = 10.0;
+        this.x = 0; this.v = 0; this.t = 0;
     }
 
-    update(dt) {
-        const { m, k, c, w, f0 } = this.params;
-        
-        // RK4 Algorithm
-        const accel = (x, v, t) => (f0 * Math.cos(w * t) - c * v - k * x) / m;
+    getNaturalFreq() { return Math.sqrt(this.k / this.m); }
 
-        const k1v = accel(this.pos.x, this.pos.v, this.pos.t);
-        const k1x = this.pos.v;
+    // Steady state amplitude calculation for Bode Plot
+    getAmplitudeAt(omega) {
+        const denom = Math.sqrt(Math.pow(this.k - this.m * Math.pow(omega, 2), 2) + Math.pow(this.c * omega, 2));
+        return this.f0 / denom;
+    }
 
-        const k2v = accel(this.pos.x + 0.5*dt*k1x, this.pos.v + 0.5*dt*k1v, this.pos.t + 0.5*dt);
-        const k2x = this.pos.v + 0.5*dt*k1v;
+    step(dt) {
+        // RK4 Integration for precision
+        const f = (x, v, t) => (this.f0 * Math.sin(this.w * t) - this.c * v - this.k * x) / this.m;
 
-        const k3v = accel(this.pos.x + 0.5*dt*k2x, this.pos.v + 0.5*dt*k2v, this.pos.t + 0.5*dt);
-        const k3x = this.pos.v + 0.5*dt*k2v;
+        const k1v = f(this.x, this.v, this.t);
+        const k1x = this.v;
 
-        const k4v = accel(this.pos.x + dt*k3x, this.pos.v + dt*k3v, this.pos.t + dt);
-        const k4x = this.pos.v + dt*k3v;
+        const k2v = f(this.x + 0.5 * dt * k1x, this.v + 0.5 * dt * k1v, this.t + 0.5 * dt);
+        const k2x = this.v + 0.5 * dt * k1v;
 
-        this.pos.v += (dt/6) * (k1v + 2*k2v + 2*k3v + k4v);
-        this.pos.x += (dt/6) * (k1x + 2*k2x + 2*k3x + k4x);
-        this.pos.t += dt;
+        const k3v = f(this.x + 0.5 * dt * k2x, this.v + 0.5 * dt * k2v, this.t + 0.5 * dt);
+        const k3x = this.v + 0.5 * dt * k2v;
 
-        return { x: this.pos.x, v: this.pos.v };
+        const k4v = f(this.x + dt * k3x, this.v + dt * k3v, this.t + dt);
+        const k4x = this.v + dt * k3v;
+
+        this.v += (dt/6) * (k1v + 2*k2v + 2*k3v + k4v);
+        this.x += (dt/6) * (k1x + 2*k2x + 2*k3x + k4x);
+        this.t += dt;
+        return this.x;
     }
 }
 
 /**
- * UI & GRAPHICS ORCHESTRATOR
+ * APPLICATION ORCHESTRATOR
  */
-class Simulation {
+class VibeSim {
     constructor() {
-        this.engine = new CoreEngine();
-        this.initThree();
+        this.dynamics = new SystemDynamics();
+        this.init3D();
         this.initCharts();
-        this.setupEvents();
-        this.loop();
+        this.setupListeners();
+        this.animate();
     }
 
-    initThree() {
-        const container = document.getElementById('three-container');
+    init3D() {
+        const container = document.getElementById('three-canvas');
         this.scene = new THREE.Scene();
-        this.camera = new THREE.PerspectiveCamera(50, container.clientWidth/container.clientHeight, 0.1, 1000);
+        this.camera = new THREE.PerspectiveCamera(45, container.clientWidth/container.clientHeight, 0.1, 1000);
         this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
         this.renderer.setSize(container.clientWidth, container.clientHeight);
         container.appendChild(this.renderer.domElement);
 
-        // Grid & Visuals
-        const grid = new THREE.GridHelper(20, 40, 0xff00ff, 0x111111);
-        grid.rotation.x = Math.PI / 2;
-        grid.position.z = -2;
+        // Lighting
+        const ambLight = new THREE.AmbientLight(0xffffff, 0.5);
+        const spot = new THREE.PointLight(0x22d3ee, 2);
+        spot.position.set(5, 5, 5);
+        this.scene.add(ambLight, spot);
+
+        // Grid
+        const grid = new THREE.GridHelper(10, 10, 0x334155, 0x1e293b);
+        grid.position.y = -0.05;
         this.scene.add(grid);
 
-        // The Bobblehead (Mass)
-        // Styled as a high-tech "Probe"
-        const group = new THREE.Group();
-        
-        const coreGeo = new THREE.OctahedronGeometry(0.8, 0);
-        const coreMat = new THREE.MeshPhongMaterial({ 
-            color: 0x00f2ff, 
-            emissive: 0x004444, 
-            wireframe: true 
-        });
-        this.probe = new THREE.Mesh(coreGeo, coreMat);
-        group.add(this.probe);
+        // Dashboard Base
+        const base = new THREE.Mesh(
+            new THREE.BoxGeometry(2, 0.1, 2),
+            new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.1 })
+        );
+        this.scene.add(base);
 
-        // Inner solid core
-        const innerGeo = new THREE.SphereGeometry(0.4, 8, 8);
-        const innerMat = new THREE.MeshBasicMaterial({ color: 0xff00ff });
-        this.inner = new THREE.Mesh(innerGeo, innerMat);
-        group.add(this.inner);
+        // The Toy (Bobblehead)
+        this.toy = new THREE.Mesh(
+            new THREE.SphereGeometry(0.5, 32, 32),
+            new THREE.MeshPhysicalMaterial({ color: 0x22d3ee, metalness: 0.9, roughness: 0.2 })
+        );
+        this.scene.add(this.toy);
 
-        this.scene.add(group);
-        this.toyGroup = group;
-
-        // Spring (The connector)
-        const springGeo = new THREE.BufferGeometry();
-        this.springLine = new THREE.Line(springGeo, new THREE.LineBasicMaterial({ color: 0x00f2ff }));
+        // Spring Geometry (Coil)
+        this.springLine = new THREE.Line(
+            new THREE.BufferGeometry(),
+            new THREE.LineBasicMaterial({ color: 0xf1f5f9, transparent: true, opacity: 0.5 })
+        );
         this.scene.add(this.springLine);
 
-        const light = new THREE.PointLight(0x00f2ff, 2, 50);
-        light.position.set(5, 5, 5);
-        this.scene.add(light, new THREE.AmbientLight(0x222222));
+        this.camera.position.set(4, 3, 5);
+        this.camera.lookAt(0, 0.5, 0);
+    }
 
-        this.camera.position.set(0, 0, 10);
+    updateSpring(height) {
+        const pts = [];
+        const turns = 10, radius = 0.25;
+        for (let i = 0; i <= 100; i++) {
+            const t = i / 100;
+            const angle = t * Math.PI * 2 * turns;
+            pts.push(new THREE.Vector3(Math.cos(angle) * radius, t * height, Math.sin(angle) * radius));
+        }
+        this.springLine.geometry.setFromPoints(pts);
     }
 
     initCharts() {
-        const cfg = (title, color) => ({
+        Chart.defaults.color = '#94a3b8';
+        Chart.defaults.font.family = 'monospace';
+
+        const chartOpts = { 
+            responsive: true, maintainAspectRatio: false, animation: false,
+            scales: { x: { grid: { color: 'rgba(255,255,255,0.05)' } }, y: { grid: { color: 'rgba(255,255,255,0.05)' } } }
+        };
+
+        this.traceChart = new Chart(document.getElementById('timeTrace'), {
             type: 'line',
-            data: { labels: Array(50).fill(''), datasets: [{ data: Array(50).fill(0), borderColor: color, borderWidth: 1, pointRadius: 0, fill: false }] },
-            options: {
-                responsive: true, maintainAspectRatio: false,
-                animation: false, plugins: { legend: false },
-                scales: { x: { display: false }, y: { grid: { color: '#111' }, ticks: { color: '#444', font: { size: 8 } } } }
-            }
+            data: { labels: Array(100).fill(''), datasets: [{ label: 'Displacement', data: Array(100).fill(0), borderColor: '#22d3ee', pointRadius: 0 }] },
+            options: { ...chartOpts, plugins: { title: { display: true, text: 'TIME-DOMAIN SIGNAL (x)' } } }
         });
 
-        this.phaseChart = new Chart(document.getElementById('phaseChart'), cfg('PHASE SPACE', '#ff00ff'));
-        this.timeChart = new Chart(document.getElementById('timeChart'), cfg('TRACE', '#00f2ff'));
+        this.bodeChart = new Chart(document.getElementById('bodePlot'), {
+            type: 'line',
+            data: { labels: [], datasets: [{ label: 'Amplitude', data: [], borderColor: '#818cf8', fill: true, backgroundColor: 'rgba(129, 140, 248, 0.1)', pointRadius: 0 }] },
+            options: { ...chartOpts, plugins: { title: { display: true, text: 'FREQUENCY RESPONSE (BODE)' } } }
+        });
     }
 
-    setupEvents() {
-        ['mass', 'stiffness', 'damping', 'frequency', 'force'].forEach(id => {
+    setupListeners() {
+        const ids = ['mass', 'stiffness', 'damping', 'frequency', 'force'];
+        ids.forEach(id => {
             document.getElementById(id).addEventListener('input', (e) => {
                 const val = parseFloat(e.target.value);
-                const map = { mass:'m', stiffness:'k', damping:'c', frequency:'w', force:'f0' };
-                this.engine.params[map[id]] = val;
-                this.updateStats();
+                const mapping = { mass: 'm', stiffness: 'k', damping: 'c', frequency: 'w', force: 'f0' };
+                this.dynamics[mapping[id]] = val;
+                document.getElementById(`val-${id}`).innerText = `${val.toFixed(1)} ${id==='mass'?'kg':id==='stiffness'?'N/m':id==='damping'?'Ns/m':id==='frequency'?'rad/s':'N'}`;
+                this.updateUI();
             });
         });
+        this.updateUI();
     }
 
-    updateStats() {
-        const { m, k, w } = this.engine.params;
-        const fn = Math.sqrt(k/m);
-        document.getElementById('val-fn').innerText = (fn / (2 * Math.PI)).toFixed(2) + " Hz";
+    updateUI() {
+        const fn = this.dynamics.getNaturalFreq();
+        document.getElementById('txt-fn').innerText = `${fn.toFixed(2)} rad/s`;
+
+        const diff = Math.abs(this.dynamics.w - fn);
+        const alertEl = document.getElementById('resonance-alert');
+        const statusEl = document.getElementById('txt-status');
         
-        const resonance = Math.abs(w - fn) < 1.0;
-        document.getElementById('resonance-ui').style.display = resonance ? 'block' : 'none';
+        if (diff < 1.0) {
+            alertEl.classList.add('critical');
+            statusEl.innerText = "System: RESONANCE";
+            statusEl.style.color = "var(--accent-red)";
+        } else {
+            alertEl.classList.remove('critical');
+            statusEl.innerText = "System: Stable";
+            statusEl.style.color = "var(--accent-cyan)";
+        }
+
+        // Update Bode Curve
+        const labels = [], data = [];
+        for (let i = 0; i <= 40; i += 1) {
+            labels.push(i);
+            data.push(this.dynamics.getAmplitudeAt(i));
+        }
+        this.bodeChart.data.labels = labels;
+        this.bodeChart.data.datasets[0].data = data;
+        this.bodeChart.update();
     }
 
-    loop() {
-        requestAnimationFrame(() => this.loop());
+    animate() {
+        requestAnimationFrame(() => this.animate());
 
-        // Physics Calculation
-        const result = this.engine.update(0.016);
-        const amp = result.x;
+        const displacement = this.dynamics.step(0.016);
+        const yPos = 1.5 + displacement;
 
-        // Visual Manipulation
-        this.toyGroup.position.y = amp;
-        this.probe.rotation.y += 0.05;
-        this.probe.rotation.x += 0.02;
+        // Update 3D
+        this.toy.position.y = yPos;
+        this.updateSpring(yPos);
 
-        // Dynamic Spring Geometry
-        const springPts = [];
-        for(let i=0; i<=20; i++) {
-            const t = i/20;
-            springPts.push(new THREE.Vector3(Math.sin(i)*0.2, -5 + (t * (5 + amp)), Math.cos(i)*0.2));
-        }
-        this.springLine.geometry.setFromPoints(springPts);
-
-        // Chart Updates
-        this.timeChart.data.datasets[0].data.push(amp);
-        this.timeChart.data.datasets[0].data.shift();
-        this.timeChart.update('none');
-
-        this.phaseChart.data.datasets[0].data.push(result.v);
-        this.phaseChart.data.datasets[0].data.shift();
-        this.phaseChart.update('none');
-
-        document.getElementById('val-amp').innerText = amp.toFixed(2);
+        // Update Trace
+        this.traceChart.data.datasets[0].data.push(displacement);
+        this.traceChart.data.datasets[0].data.shift();
+        this.traceChart.update('none');
 
         this.renderer.render(this.scene, this.camera);
     }
 }
 
-// Start Command
-window.onload = () => new Simulation();
+window.onload = () => new VibeSim();
 </script>
 </body>
 </html>
