@@ -1,1 +1,23 @@
+const express = require('express');
+const path = require('path');
+const app = express();
+
+app.use(express.json());
+app.use(express.static(path.join(__dirname, 'public')));
+
+app.post('/calculate', (req, res) => {
+  const { mass, spring, zeta } = req.body;
+  const omega_n = Math.sqrt(spring/mass);
+  const c_cr = 2*mass*omega_n;
+  const c = zeta*c_cr;
+
+  res.json({
+    omega_n: omega_n.toFixed(2),
+    c_cr: c_cr.toFixed(2),
+    c: c.toFixed(2)
+  });
+});
+
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
 
