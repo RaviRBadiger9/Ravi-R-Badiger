@@ -2,238 +2,182 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>VibeSim | Momentum & Dynamics Lab</title>
+    <title>VibeSim | Fixed Viewport & Momentum</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/0.160.0/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        :root {
-            --studio-bg: #0a0a0a;
-            --panel-bg: rgba(20, 22, 26, 0.95);
-            --border: #333;
-            --accent-gold: #f59e0b;
-            --accent-red: #ef4444;
-            --accent-blue: #3b82f6;
-            --text-main: #f1f5f9;
+        body, html { margin: 0; padding: 0; height: 100%; width: 100%; overflow: hidden; background: #000; color: #fff; font-family: sans-serif; }
+        
+        /* Fixed Layout Grid */
+        #app-container {
+            display: grid;
+            grid-template-columns: 300px 1fr;
+            height: 100vh;
+            width: 100vw;
         }
 
-        body { 
-            background: var(--studio-bg); 
-            color: var(--text-main); 
-            font-family: 'SF Pro Display', system-ui, sans-serif; 
-            margin: 0; 
-            display: grid; 
-            grid-template-columns: 340px 1fr; 
-            height: 100vh; 
-            overflow: hidden;
-        }
-
-        /* Sidebar Control Deck */
-        #ui-deck {
-            background: var(--panel-bg);
-            border-right: 1px solid var(--border);
-            padding: 30px;
+        /* Sidebar */
+        #controls {
+            background: #111;
+            padding: 20px;
+            border-right: 2px solid #333;
             display: flex;
             flex-direction: column;
-            gap: 20px;
-            z-index: 10;
-        }
-
-        .header h1 { font-size: 1rem; text-transform: uppercase; letter-spacing: 3px; color: var(--accent-gold); }
-        
-        .param-group { margin-bottom: 10px; }
-        .label-row { display: flex; justify-content: space-between; font-size: 0.75rem; margin-bottom: 8px; color: #777; }
-        .value-pill { color: var(--text-main); font-family: monospace; font-weight: bold; padding: 2px 6px; background: #000; border-radius: 4px; border: 1px solid #444; }
-
-        input[type="range"] { width: 100%; -webkit-appearance: none; background: #222; height: 3px; cursor: pointer; }
-        input[type="range"]::-webkit-slider-thumb {
-            -webkit-appearance: none; height: 14px; width: 14px; background: var(--accent-gold); border-radius: 50%; border: 2px solid white;
-        }
-
-        /* Main Viewport */
-        #workspace { display: grid; grid-template-rows: 1fr 250px; }
-        #canvas-holder { background: radial-gradient(circle at center, #1a1a1a 0%, #050505 100%); cursor: crosshair; }
-        
-        #analytics-footer { 
-            background: #050505; 
-            border-top: 1px solid var(--border); 
-            display: grid; 
-            grid-template-columns: 1fr 1fr 1fr; 
-            padding: 15px; 
             gap: 15px;
+            z-index: 100;
         }
 
-        .chart-box { background: #0c0c0c; border: 1px solid #1a1a1a; padding: 5px; border-radius: 4px; height: 100%; }
+        /* Main Viewport Area */
+        #viewport-container {
+            display: grid;
+            grid-template-rows: 1fr 250px; /* Top: 3D, Bottom: Charts */
+            background: #050505;
+        }
+
+        #canvas-3d { width: 100%; height: 100%; position: relative; }
+
+        /* Chart Area */
+        #charts-tray {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 10px;
+            padding: 10px;
+            background: #000;
+            border-top: 2px solid #222;
+        }
+
+        .chart-wrapper { background: #0a0a0a; border: 1px solid #222; height: 230px; position: relative; }
+
+        input[type="range"] { width: 100%; }
+        label { font-size: 12px; color: #888; }
+        .val-text { color: #f59e0b; font-weight: bold; }
     </style>
 </head>
 <body>
 
-<aside id="ui-deck">
-    <div class="header">
-        <h1>Kinetic Lab v7.0</h1>
-    </div>
-    
-    <div class="param-group">
-        <div class="label-row"><span>MASS [m]</span> <span class="value-pill" id="out-m">2.0 kg</span></div>
-        <input type="range" id="m" min="0.5" max="10" step="0.1" value="2.0">
-    </div>
+<div id="app-container">
+    <aside id="controls">
+        <h3>CONTROLS</h3>
+        <div>
+            <label>MASS: <span id="v-m" class="val-text">2.0</span> kg</label>
+            <input type="range" id="m" min="0.5" max="10" step="0.1" value="2.0">
+        </div>
+        <div>
+            <label>STIFFNESS: <span id="v-k" class="val-text">200</span> N/m</label>
+            <input type="range" id="k" min="50" max="1000" step="10" value="200">
+        </div>
+        <div>
+            <label>DAMPING: <span id="v-c" class="val-text">1.0</span> Ns/m</label>
+            <input type="range" id="c" min="0" max="10" step="0.1" value="1.0">
+        </div>
+        <div>
+            <label>FREQ: <span id="v-w" class="val-text">5.0</span> rad/s</label>
+            <input type="range" id="w" min="0" max="30" step="0.5" value="5.0">
+        </div>
+    </aside>
 
-    <div class="param-group">
-        <div class="label-row"><span>STIFFNESS [k]</span> <span class="value-pill" id="out-k">200 N/m</span></div>
-        <input type="range" id="k" min="50" max="1000" step="10" value="200">
+    <div id="viewport-container">
+        <div id="canvas-3d"></div>
+        
+        <div id="charts-tray">
+            <div class="chart-wrapper"><canvas id="c1"></canvas></div>
+            <div class="chart-wrapper"><canvas id="c2"></canvas></div>
+            <div class="chart-wrapper"><canvas id="c3"></canvas></div>
+        </div>
     </div>
-
-    <div class="param-group">
-        <div class="label-row"><span>DAMPING [c]</span> <span class="value-pill" id="out-c">1.0 Ns/m</span></div>
-        <input type="range" id="c" min="0" max="10" step="0.1" value="1.0">
-    </div>
-
-    <div class="param-group">
-        <div class="label-row"><span>DRIVER FREQ [ω]</span> <span class="value-pill" id="out-w">5.0 rad/s</span></div>
-        <input type="range" id="w" min="0" max="30" step="0.5" value="5.0">
-    </div>
-
-    <div style="margin-top:auto; padding:15px; background:#000; border-radius:4px; font-size:0.7rem; color:#555;">
-        <div id="diag-res" style="color:var(--accent-gold); font-weight:bold;">STATUS: NOMINAL</div>
-        <div id="diag-p" style="margin-top:5px;">MOMENTUM_VEC: 0.00</div>
-    </div>
-</aside>
-
-<main id="workspace">
-    <div id="canvas-holder"></div>
-    <div id="analytics-footer">
-        <div class="chart-box"><canvas id="chart-x"></canvas></div>
-        <div class="chart-box"><canvas id="chart-v"></canvas></div>
-        <div class="chart-box"><canvas id="chart-p"></canvas></div>
-    </div>
-</main>
+</div>
 
 <script>
-/**
- * DYNAMICS ENGINE
- */
-class PhysicsEngine {
-    constructor() {
-        this.m = 2.0; this.k = 200; this.c = 1.0; this.w = 5.0; this.f0 = 25;
-        this.x = 0; this.v = 0; this.t = 0;
-    }
-
-    step(dt) {
-        const a = (x, v, t) => (this.f0 * Math.sin(this.w * t) - this.c * v - this.k * x) / this.m;
-        // RK4 implementation
-        const k1v = a(this.x, this.v, this.t); const k1x = this.v;
-        const k2v = a(this.x + 0.5*dt*k1x, this.v + 0.5*dt*k1v, this.t + 0.5*dt); const k2x = this.v + 0.5*dt*k1v;
-        const k3v = a(this.x + 0.5*dt*k2x, this.v + 0.5*dt*k2v, this.t + 0.5*dt); const k3x = this.v + 0.5*dt*k2v;
-        const k4v = a(this.x + dt*k3x, this.v + dt*k3v, this.t + dt); const k4x = this.v + dt*k3v;
-        this.v += (dt/6) * (k1v + 2*k2v + 2*k3v + k4v);
-        this.x += (dt/6) * (k1x + 2*k2x + 2*k3x + k4x);
-        this.t += dt;
-        return { x: this.x, v: this.v, p: this.m * this.v };
-    }
-}
-
-/**
- * VISUALIZATION MANAGER
- */
-class LabApp {
-    constructor() {
-        this.engine = new PhysicsEngine();
-        this.init3D();
-        this.initCharts();
-        this.setupUI();
-        this.run();
-    }
-
-    init3D() {
-        const container = document.getElementById('canvas-holder');
-        this.scene = new THREE.Scene();
-        this.camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 1000);
-        this.renderer = new THREE.WebGLRenderer({ antialias: true });
-        this.renderer.setSize(container.clientWidth, container.clientHeight);
-        this.renderer.shadowMap.enabled = true;
-        container.appendChild(this.renderer.domElement);
-
-        this.scene.add(new THREE.AmbientLight(0xffffff, 0.5));
-        const light = new THREE.PointLight(0xffffff, 50); light.position.set(5, 10, 5); light.castShadow = true;
-        this.scene.add(light);
-
-        // Ground
-        const ground = new THREE.Mesh(new THREE.PlaneGeometry(20,20), new THREE.MeshStandardMaterial({color:0x111111}));
-        ground.rotation.x = -Math.PI/2; ground.receiveShadow = true;
-        this.scene.add(ground);
-
-        // Car Mesh
-        this.car = new THREE.Group();
-        const body = new THREE.Mesh(new THREE.BoxGeometry(2.5, 0.6, 1.2), new THREE.MeshStandardMaterial({color:0xf59e0b, metalness:0.8, roughness:0.2}));
-        body.castShadow = true;
-        const cabin = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.5, 1), new THREE.MeshStandardMaterial({color:0x333333}));
-        cabin.position.y = 0.5;
-        this.car.add(body, cabin);
-        this.scene.add(this.car);
-
-        // Spring
-        this.springPoints = 100;
-        this.springLine = new THREE.Line(new THREE.BufferGeometry(), new THREE.LineBasicMaterial({color:0x666666}));
-        this.scene.add(this.springLine);
-
-        this.camera.position.set(7, 5, 7);
-        this.camera.lookAt(0, 1, 0);
-    }
-
-    initCharts() {
-        Chart.defaults.color = '#444';
-        const config = (title, color) => ({
-            type: 'line',
-            data: { labels: Array(60).fill(''), datasets: [{ data: Array(60).fill(0), borderColor: color, borderWidth: 2, pointRadius: 0 }] },
-            options: { responsive: true, maintainAspectRatio: false, animation: false, plugins: { title: { display: true, text: title, color: '#888' } }, scales: { x: { display: false }, y: { grid: { color: '#1a1a1a' } } } }
-        });
-
-        this.chartX = new Chart(document.getElementById('chart-x'), config('DISPLACEMENT (x)', '#f59e0b'));
-        this.chartV = new Chart(document.getElementById('chart-v'), config('VELOCITY (v)', '#3b82f6'));
-        this.chartP = new Chart(document.getElementById('chart-p'), config('MOMENTUM (p)', '#ef4444'));
-    }
-
-    setupUI() {
-        ['m', 'k', 'c', 'w'].forEach(id => {
-            document.getElementById(id).addEventListener('input', (e) => {
-                const val = parseFloat(e.target.value);
-                this.engine[id] = val;
-                document.getElementById(`out-${id}`).innerText = val.toFixed(1);
-            });
-        });
-    }
-
-    updateSpring(h) {
-        const pts = [];
-        for (let i = 0; i <= this.springPoints; i++) {
-            const t = i / this.springPoints;
-            pts.push(new THREE.Vector3(Math.cos(t*60)*0.3, t*h, Math.sin(t*60)*0.3));
+    // 1. Setup Simulation Engine
+    const sim = {
+        m: 2, k: 200, c: 1, w: 5, f0: 30,
+        x: 0, v: 0, t: 0,
+        update: function(dt) {
+            const a = (this.f0 * Math.sin(this.w * this.t) - this.c * this.v - this.k * this.x) / this.m;
+            this.v += a * dt;
+            this.x += this.v * dt;
+            this.t += dt;
+            return { x: this.x, v: this.v, p: this.m * this.v };
         }
-        this.springLine.geometry.setFromPoints(pts);
-    }
+    };
 
-    run() {
-        requestAnimationFrame(() => this.run());
-        const data = this.engine.step(0.016);
+    // 2. Setup 3D View (Three.js)
+    const container = document.getElementById('canvas-3d');
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 1000);
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(container.clientWidth, container.clientHeight);
+    container.appendChild(renderer.domElement);
+
+    // Add Lights
+    const light = new THREE.DirectionalLight(0xffffff, 2);
+    light.position.set(5, 5, 5);
+    scene.add(light, new THREE.AmbientLight(0x404040));
+
+    // Create Car
+    const car = new THREE.Group();
+    const body = new THREE.Mesh(new THREE.BoxGeometry(2, 0.5, 1), new THREE.MeshStandardMaterial({color: 0xf59e0b}));
+    const top = new THREE.Mesh(new THREE.BoxGeometry(1, 0.4, 0.8), new THREE.MeshStandardMaterial({color: 0x222222}));
+    top.position.y = 0.45;
+    car.add(body, top);
+    scene.add(car);
+
+    // Create Spring (Visual)
+    const springGeo = new THREE.CylinderGeometry(0.2, 0.2, 1, 8);
+    const spring = new THREE.Mesh(springGeo, new THREE.MeshBasicMaterial({color: 0x444444, wireframe: true}));
+    scene.add(spring);
+
+    camera.position.set(5, 3, 10);
+    camera.lookAt(0, 1, 0);
+
+    // 3. Setup Charts (Chart.js)
+    const chartConfig = (id, label, color) => new Chart(document.getElementById(id), {
+        type: 'line',
+        data: { labels: Array(50).fill(''), datasets: [{ label: label, data: Array(50).fill(0), borderColor: color, borderWidth: 2, pointRadius: 0 }] },
+        options: { responsive: true, maintainAspectRatio: false, scales: { x: { display: false }, y: { beginAtZero: false } } }
+    });
+
+    const cX = chartConfig('c1', 'Displacement', '#f59e0b');
+    const cV = chartConfig('c2', 'Velocity', '#3b82f6');
+    const cP = chartConfig('c3', 'Momentum', '#ef4444');
+
+    // 4. UI Listeners
+    ['m','k','c','w'].forEach(p => {
+        document.getElementById(p).oninput = (e) => {
+            sim[p] = parseFloat(e.target.value);
+            document.getElementById('v-'+p).innerText = sim[p].toFixed(1);
+        };
+    });
+
+    // 5. Animation Loop
+    function animate() {
+        requestAnimationFrame(animate);
+        const data = sim.update(0.016);
         
-        const yBase = 2.5;
-        this.car.position.y = yBase + data.x;
-        this.updateSpring(yBase + data.x);
+        // Move Car
+        car.position.y = 2 + data.x;
+        
+        // Stretch Spring
+        spring.scale.y = 2 + data.x;
+        spring.position.y = (2 + data.x) / 2;
 
-        // Update UI
-        document.getElementById('diag-p').innerText = `MOMENTUM_VEC: ${data.p.toFixed(2)}`;
-
-        // Update Graphs
-        [ [this.chartX, data.x], [this.chartV, data.v], [this.chartP, data.p] ].forEach(pair => {
+        // Update Charts
+        [ [cX, data.x], [cV, data.v], [cP, data.p] ].forEach(pair => {
             pair[0].data.datasets[0].data.push(pair[1]);
             pair[0].data.datasets[0].data.shift();
             pair[0].update('none');
         });
 
-        this.renderer.render(this.scene, this.camera);
+        renderer.render(scene, camera);
     }
-}
+    animate();
 
-window.onload = () => new LabApp();
+    // Handle Resize
+    window.onresize = () => {
+        camera.aspect = container.clientWidth / container.clientHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(container.clientWidth, container.clientHeight);
+    };
 </script>
 </body>
 </html>
