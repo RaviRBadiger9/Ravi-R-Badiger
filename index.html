@@ -3,205 +3,273 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SpurGear Pro | Extruded Design Suite</title>
+    <title>SpurGear Pro | Full Analytical Suite</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Inter:wght@400;600;700&display=swap');
-        :root { --accent: #3b82f6; --bg-dark: #0a0c10; }
+        :root { --accent: #3b82f6; --bg-dark: #05070a; }
         body { font-family: 'Inter', sans-serif; background: var(--bg-dark); color: #e2e8f0; margin: 0; overflow: hidden; }
         .mono { font-family: 'JetBrains Mono', monospace; }
-        .glass { background: rgba(15, 23, 42, 0.9); backdrop-filter: blur(16px); border: 1px solid rgba(255, 255, 255, 0.08); }
+        .glass { background: rgba(15, 23, 42, 0.9); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.08); }
         .hidden { display: none !important; }
-        input, select { background: #000 !important; border: 1px solid #334155 !important; color: #60a5fa !important; padding: 0.5rem; font-size: 0.8rem; border-radius: 6px; width: 100%; }
-        .btn-primary { background: var(--accent); transition: all 0.2s; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; }
-        .btn-primary:hover { background: #2563eb; transform: translateY(-1px); }
+        input, select { background: #000 !important; border: 1px solid #334155 !important; color: #60a5fa !important; padding: 0.4rem; font-size: 0.75rem; border-radius: 4px; width: 100%; }
+        .step-card { border-left: 2px solid var(--accent); padding-left: 12px; margin-bottom: 20px; }
+        .tag { font-size: 9px; font-weight: bold; padding: 2px 6px; border-radius: 4px; text-transform: uppercase; }
+        .scroll-v::-webkit-scrollbar { width: 4px; }
+        .scroll-v::-webkit-scrollbar-thumb { background: #1e293b; }
     </style>
 </head>
 <body>
 
-    <!-- PORTAL SELECTION -->
-    <div id="portal" class="h-screen flex flex-col items-center justify-center p-6 text-center">
-        <h1 class="text-5xl font-bold tracking-tighter mb-4">SPURGEAR <span class="text-blue-500">PRO</span></h1>
-        <p class="text-slate-500 mono text-xs mb-12 tracking-widest uppercase">Precision Extruded Geometry Engine</p>
-        
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl w-full">
-            <button onclick="startApp('SINGLE')" class="glass p-8 rounded-2xl border border-white/5 hover:border-blue-500 transition-all group">
-                <div class="text-blue-500 mb-4 group-hover:scale-110 transition-transform">⚙️</div>
-                <h3 class="text-lg font-bold">Single Stage</h3>
-                <p class="text-xs text-slate-500 mt-2">Direct pinion-gear interface</p>
+    <!-- PORTAL -->
+    <div id="portal" class="h-screen flex flex-col items-center justify-center p-6 bg-[#010204]">
+        <h1 class="text-4xl font-bold tracking-tighter mb-8">SPURGEAR <span class="text-blue-500">PRO V6</span></h1>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-2xl w-full">
+            <button onclick="initApp('SINGLE')" class="glass p-6 rounded-xl border border-white/5 hover:border-blue-500 transition-all">
+                <h3 class="font-bold">Single Stage Reduction</h3>
+                <p class="text-xs text-slate-500 mt-1">Full Lewis & Buckingham Analysis</p>
             </button>
-            <button onclick="startApp('DOUBLE')" class="glass p-8 rounded-2xl border border-white/5 hover:border-emerald-500 transition-all group">
-                <div class="text-emerald-500 mb-4 group-hover:scale-110 transition-transform">⚙️⚙️</div>
-                <h3 class="text-lg font-bold">Double Stage</h3>
-                <p class="text-xs text-slate-500 mt-2">Multi-shaft reduction series</p>
-            </button>
-            <button onclick="startApp('COMPOUND')" class="glass p-8 rounded-2xl border border-white/5 hover:border-purple-500 transition-all group">
-                <div class="text-purple-500 mb-4 group-hover:scale-110 transition-transform">⛓️</div>
-                <h3 class="text-lg font-bold">Compound Gear</h3>
-                <p class="text-xs text-slate-500 mt-2">Torque-dense axial reduction</p>
+            <button onclick="initApp('DOUBLE')" class="glass p-6 rounded-xl border border-white/5 hover:border-emerald-500 transition-all">
+                <h3 class="font-bold">Two-Stage Compound</h3>
+                <p class="text-xs text-slate-500 mt-1">Sequential Weaker Member Identification</p>
             </button>
         </div>
     </div>
 
-    <!-- MAIN WORKSPACE -->
+    <!-- WORKSPACE -->
     <div id="workspace" class="h-screen flex flex-col hidden">
-        <header class="h-14 glass flex items-center justify-between px-6 border-b border-white/5">
-            <button onclick="location.reload()" class="text-xs font-bold text-slate-400 hover:text-white">← PORTAL</button>
-            <span id="mode-title" class="text-xs font-bold mono text-blue-400"></span>
-            <span class="text-[10px] text-slate-600">IS:2535-1969 COMPLIANT</span>
+        <header class="h-12 glass flex items-center justify-between px-6 border-b border-white/5">
+            <span class="text-[10px] font-bold mono text-blue-500">SYSTEM: DESIGN & VALIDATION ENGINE</span>
+            <button onclick="location.reload()" class="text-[10px] bg-white/5 px-3 py-1 rounded hover:bg-white/10">EXIT</button>
         </header>
 
         <div class="flex-1 flex overflow-hidden">
-            <!-- Parameters -->
-            <aside id="inputs" class="w-80 glass border-r border-white/5 p-6 space-y-6 overflow-y-auto"></aside>
-            
-            <!-- 3D Render Area -->
-            <main class="flex-1 relative bg-black">
-                <div id="canvas-container" class="w-full h-full"></div>
-                <div class="absolute bottom-6 left-6 right-6 grid grid-cols-4 gap-4">
-                    <div class="glass p-4 rounded-xl">
-                        <p class="text-[10px] text-slate-500">SYSTEM RATIO</p>
-                        <p id="out-ratio" class="text-xl font-bold mono">--</p>
-                    </div>
-                    <div class="glass p-4 rounded-xl">
-                        <p class="text-[10px] text-slate-500">MODULE (mm)</p>
-                        <p id="out-module" class="text-xl font-bold mono">--</p>
-                    </div>
-                    <div class="glass p-4 rounded-xl">
-                        <p class="text-[10px] text-slate-500">BENDING STRENGTH</p>
-                        <p id="out-strength" class="text-xl font-bold mono text-emerald-400">--</p>
-                    </div>
-                    <div class="glass p-4 rounded-xl">
-                        <p class="text-[10px] text-slate-500">MAX TORQUE (Nm)</p>
-                        <p id="out-torque" class="text-xl font-bold mono text-blue-400">--</p>
-                    </div>
+            <!-- INPUT PANEL -->
+            <aside id="sidebar" class="w-72 glass border-r border-white/5 p-4 space-y-4 overflow-y-auto scroll-v">
+                <section>
+                    <label class="text-[9px] text-slate-500 uppercase font-bold">Material Properties</label>
+                    <select id="mat-type" onchange="updateAll()">
+                        <option value="210">Steel (Sut: 600MPa, BHN: 210)</option>
+                        <option value="160">Cast Iron (Sut: 400MPa, BHN: 160)</option>
+                        <option value="350">Alloy Steel (Sut: 1000MPa, BHN: 350)</option>
+                    </select>
+                </section>
+                <section class="grid grid-cols-2 gap-2">
+                    <div><label class="text-[9px] text-slate-500">POWER (kW)</label><input type="number" id="p" value="10" oninput="updateAll()"></div>
+                    <div><label class="text-[9px] text-slate-500">INPUT RPM</label><input type="number" id="rpm" value="1440" oninput="updateAll()"></div>
+                </section>
+                <div id="gear-inputs" class="space-y-4"></div>
+                <div class="p-3 bg-blue-500/10 rounded border border-blue-500/20">
+                    <p class="text-[9px] text-blue-400 font-bold uppercase">Navigation</p>
+                    <p class="text-[10px] text-slate-400">Scroll: Zoom | Left Click: Rotate | Right Click: Pan</p>
+                </div>
+            </aside>
+
+            <!-- 3D VIEWPORT -->
+            <main class="flex-1 relative">
+                <div id="canvas-container" class="w-full h-full bg-[#020408]"></div>
+                <div class="absolute bottom-4 left-4 right-4 h-20 glass rounded-xl border border-white/5 grid grid-cols-4 gap-4 p-4">
+                    <div><p class="text-[9px] text-slate-500">WEAKER MEMBER</p><p id="res-weak" class="font-bold text-orange-400">--</p></div>
+                    <div><p class="text-[9px] text-slate-500">SELECTED MODULE</p><p id="res-m" class="font-bold text-blue-400">--</p></div>
+                    <div><p class="text-[9px] text-slate-500">FS (DYNAMIC)</p><p id="res-fs" class="font-bold">--</p></div>
+                    <div><p class="text-[9px] text-slate-500">FS (WEAR)</p><p id="res-fsw" class="font-bold">--</p></div>
                 </div>
             </main>
+
+            <!-- CALCULATION TRACE -->
+            <aside class="w-96 glass border-l border-white/5 p-6 overflow-y-auto scroll-v">
+                <h2 class="text-xs font-bold text-blue-400 mb-6 uppercase tracking-widest">Analytical Steps</h2>
+                <div id="trace" class="space-y-6 text-[11px] mono leading-relaxed"></div>
+            </aside>
         </div>
     </div>
 
     <script>
-        let scene, camera, renderer, gearGroup, currentMode;
-        const STANDARD_MODULES = [1.0, 1.25, 1.5, 2.0, 2.5, 3.0, 4.0, 5.0, 6.0, 8.0];
+        let scene, camera, renderer, controls, gearGroup, currentMode;
+        const STANDARD_MODULES = [1, 1.25, 1.5, 2, 2.5, 3, 4, 5, 6, 8, 10];
 
-        function startApp(mode) {
+        function initApp(mode) {
             currentMode = mode;
             document.getElementById('portal').classList.add('hidden');
             document.getElementById('workspace').classList.remove('hidden');
-            document.getElementById('mode-title').innerText = mode + " CALCULATION";
             setupInputs();
             init3D();
             updateAll();
         }
 
         function setupInputs() {
-            const container = document.getElementById('inputs');
-            let html = `
-                <div><label class="text-[10px] block mb-2">POWER (kW)</label><input type="number" id="p" value="5"></div>
-                <div><label class="text-[10px] block mb-2">INPUT RPM</label><input type="number" id="rpm" value="1500"></div>
-                <div class="h-px bg-white/10 my-4"></div>
-            `;
+            const container = document.getElementById('gear-inputs');
             if (currentMode === 'SINGLE') {
-                html += `<div><label class="text-[10px] block mb-2">Z1 (PINION)</label><input type="number" id="z1" value="18"></div>
-                         <div><label class="text-[10px] block mb-2">Z2 (GEAR)</label><input type="number" id="z2" value="45"></div>`;
+                container.innerHTML = `
+                    <div class="grid grid-cols-2 gap-2">
+                        <div><label class="text-[9px]">Z1 (Pinion)</label><input type="number" id="z1" value="18"></div>
+                        <div><label class="text-[9px]">Z2 (Gear)</label><input type="number" id="z2" value="54"></div>
+                    </div>`;
             } else {
-                html += `<p class="text-[10px] text-slate-500 mb-2">STAGE 1</p>
-                         <div class="flex gap-2"><div><label class="text-[9px]">Z1</label><input type="number" id="z1" value="18"></div>
-                         <div><label class="text-[9px]">Z2</label><input type="number" id="z2" value="36"></div></div>
-                         <p class="text-[10px] text-slate-500 mt-4 mb-2">STAGE 2</p>
-                         <div class="flex gap-2"><div><label class="text-[9px]">Z3</label><input type="number" id="z3" value="18"></div>
-                         <div><label class="text-[9px]">Z4</label><input type="number" id="z4" value="54"></div></div>`;
+                container.innerHTML = `
+                    <p class="text-[9px] font-bold text-slate-500 uppercase">Stage 1</p>
+                    <div class="grid grid-cols-2 gap-2">
+                        <div><label class="text-[9px]">Z1</label><input type="number" id="z1" value="20"></div>
+                        <div><label class="text-[9px]">Z2</label><input type="number" id="z2" value="60"></div>
+                    </div>
+                    <p class="text-[9px] font-bold text-slate-500 uppercase mt-4">Stage 2</p>
+                    <div class="grid grid-cols-2 gap-2">
+                        <div><label class="text-[9px]">Z3</label><input type="number" id="z3" value="20"></div>
+                        <div><label class="text-[9px]">Z4</label><input type="number" id="z4" value="80"></div>
+                    </div>`;
             }
-            html += `<button onclick="updateAll()" class="w-full btn-primary py-3 rounded-lg mt-6 text-sm">Update Design</button>`;
-            container.innerHTML = html;
         }
 
         function init3D() {
             const container = document.getElementById('canvas-container');
             scene = new THREE.Scene();
-            camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 1, 1000);
-            camera.position.set(40, 30, 60);
+            camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 1000);
+            camera.position.set(50, 50, 50);
+
             renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
             renderer.setSize(container.clientWidth, container.clientHeight);
             container.appendChild(renderer.domElement);
-            scene.add(new THREE.AmbientLight(0xffffff, 0.4), new THREE.DirectionalLight(0xffffff, 0.8));
+
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+
+            const ambient = new THREE.AmbientLight(0xffffff, 0.5);
+            const direct = new THREE.DirectionalLight(0xffffff, 1);
+            direct.position.set(10, 20, 10);
+            scene.add(ambient, direct);
+
             gearGroup = new THREE.Group();
             scene.add(gearGroup);
             animate();
         }
 
-        function createExtrudedGear(z, m, depth, color, x, zPos) {
-            const pitchRadius = (z * m) / 2;
-            const addendum = m;
-            const dedendum = 1.25 * m;
+        function createGearMesh(z, m, color, x, y, zPos, speed) {
+            const pitchR = (z * m) / 2;
             const shape = new THREE.Shape();
-            const segments = z * 2;
-
-            for (let i = 0; i <= segments; i++) {
-                const angle = (i / segments) * Math.PI * 2;
-                const r = i % 2 === 0 ? pitchRadius + addendum : pitchRadius - dedendum;
-                const px = Math.cos(angle) * r;
-                const py = Math.sin(angle) * r;
-                if (i === 0) shape.moveTo(px, py);
-                else shape.lineTo(px, py);
+            const segs = z * 2;
+            for(let i=0; i<=segs; i++) {
+                const a = (i/segs) * Math.PI * 2;
+                const r = i%2 === 0 ? pitchR + m : pitchR - (1.25*m);
+                const px = Math.cos(a) * r;
+                const py = Math.sin(a) * r;
+                if(i===0) shape.moveTo(px, py); else shape.lineTo(px, py);
             }
-
-            const extrudeSettings = { depth: depth, bevelEnabled: true, bevelThickness: 0.5, bevelSize: 0.5 };
-            const geometry = new THREE.ExtrudeGeometry(shape, extrudeSettings);
-            const material = new THREE.MeshStandardMaterial({ color: color, metalness: 0.7, roughness: 0.3 });
-            const gear = new THREE.Mesh(geometry, material);
-            gear.position.set(x, 0, zPos);
-            gear.rotation.x = Math.PI / 2;
-            return gear;
+            const geo = new THREE.ExtrudeGeometry(shape, {depth: 10, bevelEnabled: true, bevelSize: 0.2});
+            const mat = new THREE.MeshStandardMaterial({color, metalness: 0.8, roughness: 0.2});
+            const mesh = new THREE.Mesh(geo, mat);
+            mesh.position.set(x, y, zPos);
+            mesh.rotation.x = Math.PI/2;
+            mesh.userData = { speed };
+            return mesh;
         }
 
         function updateAll() {
             while(gearGroup.children.length > 0) gearGroup.remove(gearGroup.children[0]);
             const P = parseFloat(document.getElementById('p').value) * 1000;
             const n = parseFloat(document.getElementById('rpm').value);
-            const z1 = parseInt(document.getElementById('z1').value);
-            const z2 = parseInt(document.getElementById('z2').value);
+            const bhn = parseInt(document.getElementById('mat-type').value);
+            const sigma_all = bhn * 1.1; // Empirical estimation for calculation
 
-            // Calculation Logic
-            const solve = (pw, spd, zp, zg) => {
-                const T = (9550 * (pw/1000)) / spd;
-                const y = 0.154 - (0.912/zp);
-                let m_req = Math.pow((2 * T * 1000 * 1.5) / (230 * 5 * zp * Math.PI * y), 1/3);
-                let m = STANDARD_MODULES.find(v => v >= m_req) || m_req;
-                return { m, T, out_n: spd/(zg/zp) };
-            };
+            const trace = document.getElementById('trace');
+            trace.innerHTML = "";
 
-            if (currentMode === 'SINGLE') {
-                const res = solve(P, n, z1, z2);
-                gearGroup.add(createExtrudedGear(z1, res.m, 5, 0x3b82f6, 0, 0));
-                gearGroup.add(createExtrudedGear(z2, res.m, 5, 0x64748b, (z1+z2)*res.m/2, 0));
-                updateDashboard((z2/z1).toFixed(2), res.m, 230, Math.round(res.T*(z2/z1)));
+            if(currentMode === 'SINGLE') {
+                const z1 = parseInt(document.getElementById('z1').value);
+                const z2 = parseInt(document.getElementById('z2').value);
+                const results = performAnalysis(P, n, z1, z2, sigma_all, bhn, "STAGE 1");
+                
+                gearGroup.add(createGearMesh(z1, results.m, 0x3b82f6, 0, 0, 0, 1));
+                gearGroup.add(createGearMesh(z2, results.m, 0x475569, (z1+z2)*results.m/2, 0, 0, -(z1/z2)));
+                
+                updateUI(results);
             } else {
+                const z1 = parseInt(document.getElementById('z1').value);
+                const z2 = parseInt(document.getElementById('z2').value);
                 const z3 = parseInt(document.getElementById('z3').value);
                 const z4 = parseInt(document.getElementById('z4').value);
-                const s1 = solve(P, n, z1, z2);
-                const s2 = solve(P, s1.out_n, z3, z4);
+
+                const s1 = performAnalysis(P, n, z1, z2, sigma_all, bhn, "STAGE 1");
+                const s2 = performAnalysis(P, n/(z2/z1), z3, z4, sigma_all, bhn, "STAGE 2");
+
+                gearGroup.add(createGearMesh(z1, s1.m, 0x3b82f6, 0, 0, 0, 1));
+                gearGroup.add(createGearMesh(z2, s1.m, 0x475569, (z1+z2)*s1.m/2, 0, 0, -(z1/z2)));
+                gearGroup.add(createGearMesh(z3, s2.m, 0x10b981, (z1+z2)*s1.m/2, 0, 15, -(z1/z2)));
+                gearGroup.add(createGearMesh(z4, s2.m, 0x475569, (z1+z2)*s1.m/2 + (z3+z4)*s2.m/2, 0, 15, (z1/z2)*(z3/z4)));
                 
-                gearGroup.add(createExtrudedGear(z1, s1.m, 5, 0x3b82f6, 0, 0));
-                gearGroup.add(createExtrudedGear(z2, s1.m, 5, 0x64748b, (z1+z2)*s1.m/2, 0));
-                gearGroup.add(createExtrudedGear(z3, s2.m, 5, 0x10b981, (z1+z2)*s1.m/2, 6));
-                gearGroup.add(createExtrudedGear(z4, s2.m, 5, 0x64748b, ((z1+z2)*s1.m/2) + ((z3+z4)*s2.m/2), 6));
-                
-                updateDashboard(((z2/z1)*(z4/z3)).toFixed(2), `${s1.m}/${s2.m}`, 230, Math.round(s2.T*(z4/z3)));
+                updateUI(s2); // Show final stage health
             }
         }
 
-        function updateDashboard(r, m, s, t) {
-            document.getElementById('out-ratio').innerText = r + ":1";
-            document.getElementById('out-module').innerText = m;
-            document.getElementById('out-strength').innerText = s + " MPa";
-            document.getElementById('out-torque').innerText = t;
+        function performAnalysis(P, n, z1, z2, sigma_all, bhn, label) {
+            // 1. Weaker Member Identification
+            const y1 = 0.154 - (0.912/z1);
+            const y2 = 0.154 - (0.912/z2);
+            const weaker = (sigma_all * y1 < sigma_all * y2) ? "Pinion" : "Gear";
+            const Y = Math.PI * (weaker === "Pinion" ? y1 : y2);
+
+            // 2. Lewis Equation for Module
+            const Cs = 1.5;
+            const Mt = (9550 * (P/1000)) / n;
+            let m_req = Math.pow((2 * Mt * 1000 * Cs) / (sigma_all * 10 * z1 * Y), 1/3);
+            const m = STANDARD_MODULES.find(v => v >= m_req) || m_req;
+
+            // 3. Static Load Check
+            const dp = m * z1;
+            const v = (Math.PI * dp * n) / 60000;
+            const Ft = (P * Cs) / v;
+            const Cv = 3 / (3 + v);
+            const Sb = m * (10*m) * sigma_all * Y;
+
+            // 4. Dynamic Load (Barth Equation)
+            const Feff = Ft / Cv;
+            const fs_dynamic = Sb / Feff;
+
+            // 5. Wear Load (Buckingham)
+            const Q = (2 * z2) / (z1 + z2);
+            const K = 0.156 * Math.pow(bhn/100, 2); // K-factor approx
+            const Sw = dp * (10*m) * Q * K;
+            const fs_wear = Sw / Feff;
+
+            renderTraceNode(label, weaker, m, Sb, Feff, Sw, fs_dynamic, fs_wear);
+
+            return { m, weaker, fs_dynamic, fs_wear };
+        }
+
+        function renderTraceNode(label, weak, m, Sb, Feff, Sw, fsD, fsW) {
+            const container = document.getElementById('trace');
+            container.innerHTML += `
+                <div class="step-card">
+                    <span class="tag bg-blue-500/20 text-blue-400">${label}</span>
+                    <p class="mt-2 text-slate-300"><b>1. Weaker Member:</b> ${weak} (σ·y check)</p>
+                    <p><b>2. Module:</b> ${m} mm (Standardized)</p>
+                    <p><b>3. Static Load ($S_b$):</b> ${Math.round(Sb)} N</p>
+                    <p><b>4. Dynamic Load ($F_{eff}$):</b> ${Math.round(Feff)} N</p>
+                    <p><b>5. Wear Load ($S_w$):</b> ${Math.round(Sw)} N</p>
+                    <div class="mt-2 flex gap-2">
+                        <span class="tag ${fsD > 1.2 ? 'bg-emerald-500/10 text-emerald-500' : 'bg-red-500/10 text-red-500'}">F.O.S Dyn: ${fsD.toFixed(2)}</span>
+                        <span class="tag ${fsW > 1.2 ? 'bg-emerald-500/10 text-emerald-500' : 'bg-red-500/10 text-red-500'}">F.O.S Wear: ${fsW.toFixed(2)}</span>
+                    </div>
+                </div>
+            `;
+        }
+
+        function updateUI(res) {
+            document.getElementById('res-weak').innerText = res.weaker;
+            document.getElementById('res-m').innerText = res.m + " mm";
+            document.getElementById('res-fs').innerText = res.fs_dynamic.toFixed(2);
+            document.getElementById('res-fs').className = "font-bold " + (res.fs_dynamic > 1.2 ? "text-emerald-500" : "text-red-500");
+            document.getElementById('res-fsw').innerText = res.fs_wear.toFixed(2);
+            document.getElementById('res-fsw').className = "font-bold " + (res.fs_wear > 1.2 ? "text-emerald-500" : "text-red-500");
         }
 
         function animate() {
             requestAnimationFrame(animate);
-            gearGroup.rotation.y += 0.005;
+            if(controls) controls.update();
+            gearGroup.children.forEach(g => {
+                g.rotation.z += 0.01 * g.userData.speed;
+            });
             renderer.render(scene, camera);
         }
     </script>
