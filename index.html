@@ -3,292 +3,295 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SpurGear Pro | Professional Compound Design</title>
+    <title>SpurGear Pro V3 | Analytical Engineering Suite</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Inter:wght@300;500;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@300;400;600;700&display=swap');
         
-        body { font-family: 'Inter', sans-serif; }
+        :root {
+            --accent: #3b82f6;
+            --bg-dark: #020617;
+            --panel: rgba(15, 23, 42, 0.8);
+        }
+
+        body { font-family: 'Inter', sans-serif; background: var(--bg-dark); color: #e2e8f0; overflow: hidden; }
         .mono { font-family: 'JetBrains Mono', monospace; }
         
-        .panel-glass {
-            background: rgba(10, 15, 25, 0.8);
-            backdrop-filter: blur(20px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.8);
+        .glass-panel {
+            background: var(--panel);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
         }
+
+        .scroll-custom::-webkit-scrollbar { width: 4px; }
+        .scroll-custom::-webkit-scrollbar-thumb { background: #334155; border-radius: 10px; }
 
         input, select {
-            background: rgba(255, 255, 255, 0.05) !important;
+            background: rgba(0, 0, 0, 0.3) !important;
             border: 1px solid rgba(255, 255, 255, 0.1) !important;
-            transition: all 0.3s ease;
+            color: #93c5fd !important;
+            padding: 0.5rem;
+            font-size: 0.875rem;
+            border-radius: 4px;
         }
 
-        input:focus {
-            border-color: #3b82f6 !important;
-            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
-            outline: none;
+        input:focus { border-color: var(--accent) !important; outline: none; box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2); }
+        
+        .step-node {
+            border-left: 2px solid #1e293b;
+            padding-left: 1rem;
+            position: relative;
+            margin-bottom: 1.5rem;
         }
-
-        .engine-table th { @apply text-slate-500 text-[10px] uppercase tracking-widest p-3 border-b border-white/10; }
-        .engine-table td { @apply p-3 border-b border-white/5 text-sm; }
+        .step-node::before {
+            content: '';
+            position: absolute;
+            left: -5px;
+            top: 0;
+            width: 8px;
+            height: 8px;
+            background: var(--accent);
+            border-radius: 50%;
+        }
     </style>
 </head>
-<body class="bg-[#05070a] text-slate-200 min-h-screen">
+<body class="h-screen flex flex-col">
 
-    <!-- Professional Header -->
-    <header class="border-b border-white/10 px-8 py-4 flex justify-between items-center bg-[#05070a]/80 sticky top-0 z-50">
-        <div class="flex items-center gap-3">
-            <div class="w-8 h-8 bg-blue-600 rounded flex items-center justify-center font-bold">G</div>
+    <!-- Header -->
+    <header class="h-16 border-b border-white/10 px-6 flex items-center justify-between bg-slate-950/50">
+        <div class="flex items-center gap-4">
+            <div class="bg-blue-600 p-1.5 rounded font-bold text-white leading-none text-xl">Σ</div>
             <div>
-                <h1 class="text-lg font-bold tracking-tight">SPURGEAR PRO <span class="text-blue-500 font-mono text-xs ml-2">V3.0.0</span></h1>
-                <p class="text-[10px] text-slate-500 uppercase">Industrial Compound Gear Train Evaluator</p>
+                <h1 class="font-bold tracking-tighter text-lg leading-tight">SPURGEAR PRO</h1>
+                <p class="text-[10px] text-slate-500 uppercase tracking-widest">Industrial Design & Analytical Validation</p>
             </div>
         </div>
-        <div class="flex gap-6 text-xs font-mono text-slate-400">
-            <span>REF: IS:2535-1969</span>
-            <span class="text-emerald-500">SYSTEM READY</span>
+        <div class="flex gap-4 items-center">
+            <span class="text-[10px] mono text-emerald-500 bg-emerald-500/10 px-2 py-1 rounded">ENGINE v3.2.0 ACTIVE</span>
         </div>
     </header>
 
-    <main class="grid grid-cols-12 gap-0 min-h-[calc(100vh-73px)]">
+    <!-- Main Workspace -->
+    <div class="flex-1 flex overflow-hidden">
         
-        <!-- Sidebar: Precise Technical Inputs -->
-        <aside class="col-span-12 lg:col-span-3 border-r border-white/10 p-6 space-y-8 overflow-y-auto">
-            <div>
-                <h2 class="text-xs font-bold text-blue-400 uppercase mb-4 tracking-widest">Input Specifications</h2>
-                <div class="space-y-4">
-                    <div class="group">
-                        <label class="block text-[10px] text-slate-500 mb-1">DESIGN POWER (P) [kW]</label>
-                        <input type="number" id="inputP" value="7.50" step="0.01" class="w-full p-2 rounded text-sm mono">
+        <!-- COLUMN 1: Inputs -->
+        <aside class="w-72 border-r border-white/5 flex flex-col glass-panel p-5 space-y-6 overflow-y-auto">
+            <section>
+                <h2 class="text-[10px] font-bold text-slate-500 uppercase mb-4 tracking-widest">Load Parameters</h2>
+                <div class="space-y-3">
+                    <div class="flex flex-col">
+                        <label class="text-[11px] text-slate-400 mb-1">POWER (P) [kW]</label>
+                        <input type="number" id="valP" value="7.5" step="0.1">
                     </div>
-                    <div>
-                        <label class="block text-[10px] text-slate-500 mb-1">INPUT VELOCITY (n1) [RPM]</label>
-                        <input type="number" id="inputN1" value="3800" class="w-full p-2 rounded text-sm mono">
+                    <div class="flex flex-col">
+                        <label class="text-[11px] text-slate-400 mb-1">SPEED (n) [RPM]</label>
+                        <input type="number" id="valN" value="3800">
                     </div>
-                    <div class="grid grid-cols-2 gap-3">
-                        <div>
-                            <label class="block text-[10px] text-slate-500 mb-1">PINION TEETH (Z1)</label>
-                            <input type="number" id="inputZ1" value="18" class="w-full p-2 rounded text-sm mono">
-                        </div>
-                        <div>
-                            <label class="block text-[10px] text-slate-500 mb-1">GEAR TEETH (Z2)</label>
-                            <input type="number" id="inputZ2" value="54" class="w-full p-2 rounded text-sm mono">
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div>
-                <h2 class="text-xs font-bold text-blue-400 uppercase mb-4 tracking-widest">Material & Service</h2>
-                <div class="space-y-4">
-                    <div>
-                        <label class="block text-[10px] text-slate-500 mb-1">SERVICE FACTOR (Cs) [REF: image_54af41.jpg]</label>
-                        <select id="inputCs" class="w-full p-2 rounded text-sm mono">
-                            <option value="1.0">Steady Load (1.00)</option>
-                            <option value="1.25">Light Shocks (1.25)</option>
-                            <option value="1.50" selected>Medium Shocks (1.50)</option>
-                            <option value="2.00">Heavy Shocks (2.00)</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="block text-[10px] text-slate-500 mb-1">STATIC STRESS (σd) [REF: image_54af0b.jpg]</label>
-                        <select id="inputSigma" class="w-full p-2 rounded text-sm mono">
-                            <option value="233.4">Steel C45 (233.4 MPa)</option>
-                            <option value="193.2">Cast Steel (193.2 MPa)</option>
-                            <option value="56.4">Cast Iron Grade 20 (56.4 MPa)</option>
+                    <div class="flex flex-col">
+                        <label class="text-[11px] text-slate-400 mb-1">SERVICE FACTOR (Cs)</label>
+                        <select id="valCs">
+                            <option value="1.0">Steady (1.0)</option>
+                            <option value="1.25">Light Shock (1.25)</option>
+                            <option value="1.5" selected>Medium Shock (1.5)</option>
+                            <option value="2.0">Heavy Shock (2.0)</option>
                         </select>
                     </div>
                 </div>
-            </div>
+            </section>
 
-            <button onclick="calculateProfessional()" class="w-full py-4 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded shadow-lg shadow-blue-900/40 transition-all active:scale-[0.98] uppercase text-xs tracking-widest">
-                Execute Full Engineering Analysis
+            <section>
+                <h2 class="text-[10px] font-bold text-slate-500 uppercase mb-4 tracking-widest">Gear Geometry</h2>
+                <div class="space-y-3">
+                    <div class="flex flex-col">
+                        <label class="text-[11px] text-slate-400 mb-1">PINION TEETH (Z1)</label>
+                        <input type="number" id="valZ1" value="18">
+                    </div>
+                    <div class="flex flex-col">
+                        <label class="text-[11px] text-slate-400 mb-1">RATIO (i)</label>
+                        <input type="number" id="valI" value="3.5" step="0.1">
+                    </div>
+                    <div class="flex flex-col">
+                        <label class="text-[11px] text-slate-400 mb-1">STATIC STRESS (σd) [MPa]</label>
+                        <input type="number" id="valSigma" value="230">
+                    </div>
+                </div>
+            </section>
+
+            <button onclick="performIndustrialCalculation()" class="w-full py-3 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded text-xs tracking-widest transition-all">
+                RUN FULL CALCULATION
             </button>
         </aside>
 
-        <!-- Main Workspace -->
-        <section class="col-span-12 lg:col-span-9 bg-[#080a0f] flex flex-col">
+        <!-- COLUMN 2: Visualization -->
+        <main class="flex-1 flex flex-col relative bg-[#010409]">
+            <div id="canvas-container" class="flex-1"></div>
             
-            <!-- Reference Strip -->
-            <div class="p-4 border-b border-white/5 flex gap-8 items-center bg-[#0a0c12]">
-                <div class="flex items-center gap-2">
-                    <span class="w-2 h-2 bg-blue-500 rounded-full"></span>
-                    <span class="text-[10px] font-mono text-slate-400">TABLE 12.2 MODULES ACTIVE</span>
+            <!-- Bottom Data Strip -->
+            <div class="h-32 border-t border-white/5 glass-panel p-4 grid grid-cols-4 gap-4">
+                <div class="border-r border-white/5 p-2">
+                    <p class="text-[10px] text-slate-500 uppercase">Selected Module</p>
+                    <p id="resM" class="text-xl font-bold mono text-blue-400">--</p>
                 </div>
-                <div class="flex items-center gap-2">
-                    <span class="w-2 h-2 bg-emerald-500 rounded-full"></span>
-                    <span class="text-[10px] font-mono text-slate-400">LEWIS FORM FACTOR VALIDATED</span>
+                <div class="border-r border-white/5 p-2">
+                    <p class="text-[10px] text-slate-500 uppercase">Beam Strength (Sb)</p>
+                    <p id="resSb" class="text-xl font-bold mono text-emerald-400">--</p>
                 </div>
-            </div>
-
-            <!-- Visualization and Tables -->
-            <div class="flex-grow grid grid-cols-12 overflow-hidden">
-                
-                <!-- 3D Render Area -->
-                <div class="col-span-12 xl:col-span-7 relative border-r border-white/5">
-                    <div id="render-viewport" class="w-full h-full"></div>
-                    <div class="absolute bottom-6 left-6 p-4 panel-glass rounded-lg border border-white/10">
-                        <p class="text-[10px] text-slate-500 mb-1 uppercase">Dynamic Visualisation</p>
-                        <h3 class="text-sm font-bold text-blue-400">COMPOUND GEAR TRAIN ASSEMBLY</h3>
-                    </div>
+                <div class="border-r border-white/5 p-2">
+                    <p class="text-[10px] text-slate-500 uppercase">Tangential Load (Ft)</p>
+                    <p id="resFt" class="text-xl font-bold mono text-slate-300">--</p>
                 </div>
-
-                <!-- Calculations & Results -->
-                <div class="col-span-12 xl:col-span-5 p-8 space-y-8 overflow-y-auto bg-[#05070a]">
-                    
-                    <!-- Formula Reference Area -->
-                    <div class="p-6 panel-glass rounded-xl border-l-4 border-blue-500 space-y-4">
-                        <h4 class="text-xs font-bold text-slate-300 uppercase">Core Formulas [REF: image_54aecc.jpg]</h4>
-                        <div class="grid grid-cols-1 gap-3 text-xs mono text-slate-400">
-                            <p>Tangential Load: <span class="text-blue-400">Ft = (1000 * P * Cs) / v</span></p>
-                            <p>Beam Strength: <span class="text-blue-400">Sb = m * b * σd * Y</span></p>
-                            <p>Lewis Factor (20°): <span class="text-blue-400">y = 0.154 - (0.912 / z)</span> [REF: image_54aee6.jpg]</p>
-                        </div>
-                    </div>
-
-                    <!-- Computed Technical Data -->
-                    <div class="space-y-4">
-                        <h4 class="text-xs font-bold text-slate-300 uppercase">Validation Data Sheet</h4>
-                        <table class="w-full engine-table mono">
-                            <thead>
-                                <tr>
-                                    <th>Parameter</th>
-                                    <th>Calculated Value</th>
-                                    <th>Status</th>
-                                </tr>
-                            </thead>
-                            <tbody id="tech-results">
-                                <!-- Dynamic Rows -->
-                            </tbody>
-                        </table>
-                    </div>
-
+                <div class="p-2">
+                    <p class="text-[10px] text-slate-500 uppercase">Velocity Factor (Cv)</p>
+                    <p id="resCv" class="text-xl font-bold mono text-slate-300">--</p>
                 </div>
             </div>
-        </section>
-    </main>
+        </main>
+
+        <!-- COLUMN 3: Calculation Steps -->
+        <aside class="w-96 border-l border-white/5 glass-panel p-6 flex flex-col">
+            <h2 class="text-xs font-bold text-blue-400 uppercase mb-6 tracking-widest flex items-center gap-2">
+                <span class="w-2 h-2 bg-blue-400 rounded-full animate-pulse"></span>
+                Mathematical Trace
+            </h2>
+            <div id="stepContainer" class="flex-1 overflow-y-auto scroll-custom pr-2 mono text-[11px] leading-relaxed">
+                <div class="text-slate-500 italic">Initiate calculation to view steps...</div>
+            </div>
+        </aside>
+    </div>
 
     <script>
-        // --- ENGINEERING DATASETS ---
-        const STANDARD_MODULES = [1.0, 1.25, 1.5, 2.0, 2.5, 3.0, 4.0, 5.0, 6.0, 8.0, 10.0]; // [REF: image_54aeab.jpg]
-
+        const STANDARD_MODULES = [1.0, 1.25, 1.5, 2.0, 2.5, 3.0, 4.0, 5.0, 6.0, 8.0, 10.0, 12.0];
         let scene, camera, renderer, gearGroup;
 
-        function initApp() {
-            const container = document.getElementById('render-viewport');
+        function init3D() {
+            const container = document.getElementById('canvas-container');
             scene = new THREE.Scene();
             camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 1000);
-            camera.position.set(20, 15, 30);
-            camera.lookAt(0, 0, 0);
-
+            camera.position.set(15, 10, 25);
+            
             renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
             renderer.setSize(container.clientWidth, container.clientHeight);
-            renderer.setPixelRatio(window.devicePixelRatio);
             container.appendChild(renderer.domElement);
 
-            const ambient = new THREE.AmbientLight(0xffffff, 0.4);
-            const point = new THREE.PointLight(0x3b82f6, 1, 100);
-            point.position.set(10, 20, 10);
-            scene.add(ambient, point);
+            const light = new THREE.DirectionalLight(0xffffff, 1);
+            light.position.set(5, 10, 7);
+            scene.add(new THREE.AmbientLight(0xffffff, 0.3), light);
 
             gearGroup = new THREE.Group();
             scene.add(gearGroup);
 
-            calculateProfessional();
+            performIndustrialCalculation();
             animate();
         }
 
-        function calculateProfessional() {
-            const P = parseFloat(document.getElementById('inputP').value) * 1000;
-            const n1 = parseFloat(document.getElementById('inputN1').value);
-            const z1 = parseInt(document.getElementById('inputZ1').value);
-            const z2 = parseInt(document.getElementById('inputZ2').value);
-            const Cs = parseFloat(document.getElementById('inputCs').value);
-            const sigmaD = parseFloat(document.getElementById('inputSigma').value);
+        function performIndustrialCalculation() {
+            const P = parseFloat(document.getElementById('valP').value) * 1000;
+            const n = parseFloat(document.getElementById('valN').value);
+            const z1 = parseInt(document.getElementById('valZ1').value);
+            const ratio = parseFloat(document.getElementById('valI').value);
+            const Cs = parseFloat(document.getElementById('valCs').value);
+            const sigmaD = parseFloat(document.getElementById('valSigma').value);
+            const z2 = Math.round(z1 * ratio);
 
-            // 1. Initial Guess for Module using Beam Strength [REF: image_54af0b.jpg]
-            const y1 = 0.154 - (0.912 / z1); // Lewis Factor [REF: image_54aee6.jpg]
+            const steps = [];
+
+            // Step 1: Torque Calculation
+            const torque = (9550 * (P / 1000)) / n;
+            steps.push({
+                title: "01. TORQUE DERIVATION",
+                body: `T = (9550 * P_kW) / n <br> T = (9550 * ${P/1000}) / ${n} = <span class='text-blue-400'>${torque.toFixed(2)} Nm</span>`
+            });
+
+            // Step 2: Lewis Factor
+            const y1 = 0.154 - (0.912 / z1);
             const Y = Math.PI * y1;
-            const torque = (9550 * P / 1000) / n1; // Nm
-            
-            // Initial m_req estimation
-            let m_req = Math.pow((2 * torque * 1000 * Cs) / (sigmaD * 10 * z1 * Y), 1/3);
-            let m = STANDARD_MODULES.find(val => val >= m_req) || m_req;
+            steps.push({
+                title: "02. LEWIS FORM FACTOR (Y)",
+                body: `y = 0.154 - (0.912 / ${z1}) = ${y1.toFixed(4)} <br> Y = π * y = <span class='text-blue-400'>${Y.toFixed(4)}</span>`
+            });
 
-            // 2. Velocity & Load Check [REF: image_54aecc.jpg]
-            const dp = m * z1;
-            const v = (Math.PI * dp * n1) / 60000;
+            // Step 3: Module Estimation
+            // b = 10m, initial Cv guess 0.5
+            let m_req = Math.pow((2 * torque * 1000 * Cs) / (sigmaD * 0.5 * 10 * z1 * Y), 1/3);
+            let m = STANDARD_MODULES.find(v => v >= m_req) || m_req;
+            steps.push({
+                title: "03. MODULE SELECTION",
+                body: `m_req = [ (2*T*Cs) / (σd*Cv*b*z1*Y) ]^(1/3) <br> m_req = ${m_req.toFixed(2)} mm <br> Standard Selected (Table 12.2): <span class='text-emerald-400'>${m} mm</span>`
+            });
+
+            // Step 4: Velocity & Dynamic Check
+            const v = (Math.PI * (m * z1) * n) / 60000;
             const Cv = 3.05 / (3.05 + v);
             const Ft = (P * Cs) / v;
-            const Sb = m * (10 * m) * sigmaD * Cv * Y;
+            const Sb = m * (10 * m) * sigmaD * Y * Cv;
+            
+            steps.push({
+                title: "04. DYNAMIC VALIDATION",
+                body: `v = (π * d1 * n) / 60000 = ${v.toFixed(2)} m/s <br> Cv = 3.05 / (3.05 + v) = ${Cv.toFixed(3)} <br> Sb (Beam Strength) = <span class='text-emerald-400'>${Math.round(Sb)} N</span>`
+            });
 
-            updateUI(m, v, Ft, Sb, z1, z2);
-            update3DCompound(m, z1, z2);
+            steps.push({
+                title: "05. FINAL STATUS",
+                body: `Tangential Load Ft = ${Math.round(Ft)} N <br> Condition: ${Sb > Ft ? '<span class="text-emerald-400">SAFE (Sb > Ft)</span>' : '<span class="text-red-400">FAIL (Sb < Ft)</span>'}`
+            });
+
+            renderSteps(steps);
+            updateUI(m, Sb, Ft, Cv);
+            update3D(m, z1, z2);
         }
 
-        function updateUI(m, v, Ft, Sb, z1, z2) {
-            const tbody = document.getElementById('tech-results');
-            const data = [
-                ["Selected Module", `${m.toFixed(2)} mm`, "OK"],
-                ["Pitch Line Velocity", `${v.toFixed(2)} m/s`, v < 15 ? "NOMINAL" : "HIGH"],
-                ["Tangential Force (Ft)", `${Math.round(Ft)} N`, "LOAD"],
-                ["Beam Strength (Sb)", `${Math.round(Sb)} N`, Sb > Ft ? "SAFE" : "CRITICAL"],
-                ["Reduction Ratio", `${(z2/z1).toFixed(2)}:1`, "FIXED"]
-            ];
-
-            tbody.innerHTML = data.map(row => `
-                <tr>
-                    <td>${row[0]}</td>
-                    <td class="text-blue-400 font-bold">${row[1]}</td>
-                    <td class="${row[2] === 'SAFE' ? 'text-emerald-500' : (row[2] === 'CRITICAL' ? 'text-red-500' : 'text-slate-500')}">${row[2]}</td>
-                </tr>
+        function renderSteps(steps) {
+            const container = document.getElementById('stepContainer');
+            container.innerHTML = steps.map(s => `
+                <div class="step-node">
+                    <h3 class="text-slate-300 font-bold mb-1">${s.title}</h3>
+                    <p class="text-slate-500">${s.body}</p>
+                </div>
             `).join('');
         }
 
-        function update3DCompound(m, z1, z2) {
+        function updateUI(m, Sb, Ft, Cv) {
+            document.getElementById('resM').innerText = m + " mm";
+            document.getElementById('resSb').innerText = Math.round(Sb) + " N";
+            document.getElementById('resFt').innerText = Math.round(Ft) + " N";
+            document.getElementById('resCv').innerText = Cv.toFixed(3);
+        }
+
+        function update3D(m, z1, z2) {
             while(gearGroup.children.length > 0) gearGroup.remove(gearGroup.children[0]);
-
-            const scale = 0.15;
-            const mat1 = new THREE.MeshStandardMaterial({ color: 0x3b82f6, wireframe: true });
-            const mat2 = new THREE.MeshStandardMaterial({ color: 0x1e293b, transparent: true, opacity: 0.5 });
-
-            // Pair 1: Pinion
-            const r1 = (z1 * m * scale) / 2;
-            const gear1 = new THREE.Mesh(new THREE.CylinderGeometry(r1, r1, 2, 32), mat1);
-            gear1.rotation.x = Math.PI / 2;
             
-            // Pair 1: Gear
-            const r2 = (z2 * m * scale) / 2;
-            const gear2 = new THREE.Mesh(new THREE.CylinderGeometry(r2, r2, 1.8, 32), mat1);
-            gear2.rotation.x = Math.PI / 2;
-            gear2.position.x = r1 + r2;
+            const mat = new THREE.MeshStandardMaterial({ color: 0x3b82f6, wireframe: true });
+            const r1 = (z1 * m) / 20;
+            const r2 = (z2 * m) / 20;
 
-            // Compound: Pinion 2 (Keyed to Gear 1)
-            const r3 = r1 * 0.8;
-            const gear3 = new THREE.Mesh(new THREE.CylinderGeometry(r3, r3, 1.5, 32), mat1);
-            gear3.rotation.x = Math.PI / 2;
-            gear3.position.x = r1 + r2;
-            gear3.position.z = 3;
-
-            gearGroup.add(gear1, gear2, gear3);
+            const g1 = new THREE.Mesh(new THREE.CylinderGeometry(r1, r1, 2, 32), mat);
+            g1.rotation.x = Math.PI/2;
             
-            // Add Shaft Visuals
-            const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 10, 16), mat2);
-            shaft.rotation.x = Math.PI / 2;
-            shaft.position.x = r1 + r2;
-            gearGroup.add(shaft);
+            const g2 = new THREE.Mesh(new THREE.CylinderGeometry(r2, r2, 2.1, 32), mat);
+            g2.rotation.x = Math.PI/2;
+            g2.position.x = r1 + r2;
+
+            gearGroup.add(g1, g2);
+            gearGroup.userData = { r1: z1, r2: z2 };
         }
 
         function animate() {
             requestAnimationFrame(animate);
-            if(gearGroup.children[0]) gearGroup.children[0].rotation.y += 0.01;
-            if(gearGroup.children[1]) gearGroup.children[1].rotation.y -= 0.01 * (parseInt(document.getElementById('inputZ1').value) / parseInt(document.getElementById('inputZ2').value));
+            if(gearGroup.children.length > 1) {
+                gearGroup.children[0].rotation.y += 0.01;
+                gearGroup.children[1].rotation.y -= 0.01 * (gearGroup.userData.r1 / gearGroup.userData.r2);
+            }
             renderer.render(scene, camera);
         }
 
-        window.onload = initApp;
+        window.onload = init3D;
+        window.onresize = () => {
+            const container = document.getElementById('canvas-container');
+            camera.aspect = container.clientWidth / container.clientHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(container.clientWidth, container.clientHeight);
+        };
     </script>
 </body>
 </html>
