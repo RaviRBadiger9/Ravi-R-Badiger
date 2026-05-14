@@ -258,8 +258,10 @@
 
             gearContainer.position.set(x, yOffset, zOffset);
             gearContainer.rotation.x = Math.PI / 2;
-            gearContainer.rotation.y = initialOffset; // Apply starting alignment
-            activeGears.push({ obj: gearContainer, speed: speedFactor });
+            
+            // Critical Fix: Applying offset and animation target to the MESH local Z rotation
+            mesh.rotation.z = initialOffset; 
+            activeGears.push({ obj: mesh, speed: speedFactor });
 
             return gearContainer;
         }
@@ -297,10 +299,7 @@
             const fd = ftEff + ((21 * v * (b * C + ftEff)) / (21 * v + Math.sqrt(b * C + ftEff)));
 
             if(engineMode === 'single') {
-                // Pinion (Input) Speed = 1
                 gearGroup.add(createGearMesh(z1, m, 0, gearColor, 0, 0, 1, 0));
-                // Gear (Output) Speed = - (Z1/Z2)
-                // Offset by Math.PI/z2 to align tooth with gap
                 gearGroup.add(createGearMesh(z2, m, (d1 + d2)/2, gearColor, 0, 0, -ratio1, Math.PI/z2));
             } else if (engineMode === 'double') {
                 gearGroup.add(createGearMesh(z1, m, 0, gearColor, 0, 0, 1));
@@ -309,13 +308,10 @@
                 gearGroup.add(createGearMesh(z3, m, 0, gearColor, 0, 50, 1));
                 gearGroup.add(createGearMesh(z4, m, (d3 + d4)/2, gearColor, 0, 50, -(z3/z4), Math.PI/z4));
             } else if (engineMode === 'compound') {
-                // Shaft A
-                gearGroup.add(createGearMesh(z1, m, 0, gearColor, 0, 0, 1));
-                // Shaft B (Z2 meshes with Z1, Z3 is fixed to Z2)
                 const shaftBX = (d1 + d2)/2;
+                gearGroup.add(createGearMesh(z1, m, 0, gearColor, 0, 0, 1));
                 gearGroup.add(createGearMesh(z2, m, shaftBX, gearColor, 0, 0, -ratio1, Math.PI/z2));
                 gearGroup.add(createGearMesh(z3, m, shaftBX, gearColor, 12, 0, -ratio1, 0)); 
-                // Shaft C (Z4 meshes with Z3)
                 const d3 = z3 * m, d4 = z4 * m;
                 const ratio2 = z3 / z4;
                 gearGroup.add(createGearMesh(z4, m, shaftBX + (d3 + d4)/2, gearColor, 12, 0, ratio1 * ratio2, Math.PI/z4));
@@ -351,12 +347,11 @@
             requestAnimationFrame(animate);
             if(isAnimating) {
                 const rpm = parseFloat(document.getElementById('in-n').value) || 0;
-                // Rotational speed increment
                 const step = (rpm * Math.PI) / 60000; 
                 
                 activeGears.forEach(gear => {
-                    // Update rotation based on specific gear's speed factor
-                    gear.obj.rotation.y += step * gear.speed;
+                    // Critical Fix: Using .rotation.z ensures correct orientation face rotation
+                    gear.obj.rotation.z += step * gear.speed;
                 });
             }
 
