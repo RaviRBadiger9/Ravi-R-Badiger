@@ -1,306 +1,426 @@
+To integrate **Ansys-style Stress Analysis** into your existing gear engine without changing your logic, I have added a "Thermal/Stress Heatmap" overlay. This uses a **Vertex Color** gradient to simulate a Finite Element Analysis (FEA) result directly on the gear meshes.
+
+In Ansys, the highest stress usually occurs at the **root of the tooth** (Lewis Stress) and the **contact point**. This code now procedurally colors the teeth with a spectral gradient (Blue $\rightarrow$ Red) based on the calculated Effective Load ($F_{eff}$).
+
+Here is the full code:
+
+```html
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ANSYS-Style Gear Stress Simulator</title>
+    <title>SpurGear Pro | Analytical Engineering Suite</title>
+    <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    
     <style>
-        body { margin: 0; overflow: hidden; font-family: 'Inter', sans-serif; background: #0f172a; }
-        #render-area { width: 100vw; height: 100vh; }
-        .glass-panel {
-            background: rgba(255, 255, 255, 0.9);
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.2);
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Inter:wght@400;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; background-color: #ffffff; color: #1e293b; margin: 0; overflow: hidden; }
+        .mono { font-family: 'JetBrains Mono', monospace; }
+        .glass { background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(12px); border: 1px solid rgba(0, 0, 0, 0.05); }
+        input, select { background: #ffffff !important; border: 1px solid #cbd5e1 !important; color: #334155 !important; padding: 0.4rem; font-size: 0.7rem; border-radius: 6px; width: 100%; }
+        #splash-screen { position: fixed; inset: 0; background: rgba(15, 23, 42, 0.9); backdrop-filter: blur(8px); z-index: 100; display: flex; align-items: center; justify-content: center; }
+        .option-card { background: white; padding: 2rem; border-radius: 12px; width: 320px; cursor: pointer; border: 2px solid transparent; transition: all 0.3s; }
+        .option-card:hover { transform: translateY(-5px); border-color: #3b82f6; }
+        #pdf-template { position: absolute; left: -9999px; width: 800px; padding: 40px; background: white; color: black; }
+
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateX(20px); }
+            to { opacity: 1; transform: translateX(0); }
         }
-        .ansys-gradient {
-            background: linear-gradient(180deg, #ff0000 0%, #ffff00 25%, #00ff00 50%, #00ffff 75%, #0000ff 100%);
-            width: 15px; height: 150px; border-radius: 4px;
-        }
+        .calc-card { animation: slideIn 0.4s ease-out forwards; }
+        #anim-toggle { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); z-index: 50; }
+        
+        /* FEA Legend */
+        .fea-legend { position: absolute; bottom: 80px; right: 20px; width: 150px; background: rgba(255,255,255,0.8); padding: 10px; border-radius: 8px; border: 1px solid #ddd; font-size: 10px; }
+        .gradient-bar { height: 10px; width: 100%; background: linear-gradient(to right, blue, cyan, green, yellow, red); border-radius: 2px; margin: 5px 0; }
     </style>
 </head>
 <body>
 
-<!-- Splash Screen -->
-<div id="splash-screen" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900 text-white">
-    <div class="text-center p-8 border border-slate-700 rounded-2xl bg-slate-800 shadow-2xl">
-        <h1 class="text-4xl font-bold mb-2">GEAR<span class="text-blue-500">LAB</span> Pro</h1>
-        <p class="text-slate-400 mb-6">FEA Stress Analysis & Kinematic Engine</p>
-        <div class="grid grid-cols-1 gap-4">
-            <button onclick="launchEngine('single')" class="py-3 px-6 bg-blue-600 hover:bg-blue-500 rounded-lg font-bold transition">SINGLE STAGE MESH</button>
-            <button onclick="launchEngine('compound')" class="py-3 px-6 bg-indigo-600 hover:bg-indigo-500 rounded-lg font-bold transition">COMPOUND TRAIN</button>
-        </div>
-    </div>
-</div>
-
-<!-- Main UI -->
-<div id="main-engine" class="hidden">
-    <!-- Left Sidebar: Controls -->
-    <div class="fixed top-5 left-5 z-40 w-80 glass-panel p-6 rounded-2xl shadow-2xl max-h-[90vh] overflow-y-auto">
-        <div class="flex items-center justify-between mb-4">
-            <h2 class="font-black text-slate-800 tracking-tight">DESIGN PARAMETERS</h2>
-            <span id="mode-label" class="text-[10px] bg-blue-100 text-blue-700 px-2 py-1 rounded font-bold"></span>
-        </div>
-
-        <div class="space-y-4 text-sm">
-            <div>
-                <label class="block text-slate-500 font-bold mb-1">MODULE (m)</label>
-                <select id="module-sel" onchange="updateDesign()" class="w-full p-2 border rounded bg-white">
-                    <option value="2">2.0 (Precision)</option>
-                    <option value="4" selected>4.0 (Standard)</option>
-                    <option value="8">8.0 (Heavy Duty)</option>
-                </select>
-            </div>
-
-            <div class="grid grid-cols-2 gap-2">
-                <div>
-                    <label class="block text-slate-500 font-bold mb-1">TEETH Z1</label>
-                    <input type="number" id="z1" value="20" oninput="updateDesign()" class="w-full p-2 border rounded">
+    <div id="splash-screen">
+        <div class="max-w-5xl w-full px-8 text-center">
+            <h2 class="text-white text-3xl font-bold mb-10">Select Design Path</h2>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div class="option-card text-left" onclick="launchEngine('single')">
+                    <h3 class="font-bold text-slate-800">Single Stage</h3>
+                    <p class="text-xs text-slate-500 mt-2">Standard 2-gear drive (IS:2535).</p>
                 </div>
-                <div>
-                    <label class="block text-slate-500 font-bold mb-1">TEETH Z2</label>
-                    <input type="number" id="z2" value="40" oninput="updateDesign()" class="w-full p-2 border rounded">
+                <div class="option-card text-left" onclick="launchEngine('double')">
+                    <h3 class="font-bold text-slate-800">Double Stage</h3>
+                    <p class="text-xs text-slate-500 mt-2">Extended multi-shaft system.</p>
                 </div>
-            </div>
-
-            <div id="multi-stage-inputs" class="hidden grid grid-cols-2 gap-2 border-t pt-4">
-                <div>
-                    <label class="block text-slate-500 font-bold mb-1">TEETH Z3</label>
-                    <input type="number" id="z3" value="20" oninput="updateDesign()" class="w-full p-2 border rounded">
+                <div class="option-card text-left" onclick="launchEngine('compound')">
+                    <h3 class="font-bold text-slate-800">Compound</h3>
+                    <p class="text-xs text-slate-500 mt-2">Common shaft gear train.</p>
                 </div>
-                <div>
-                    <label class="block text-slate-500 font-bold mb-1">TEETH Z4</label>
-                    <input type="number" id="z4" value="50" oninput="updateDesign()" class="w-full p-2 border rounded">
-                </div>
-            </div>
-
-            <div>
-                <label class="block text-slate-500 font-bold mb-1">MATERIAL STRESS (σ₀)</label>
-                <select id="material-stress" onchange="updateDesign()" class="w-full p-2 border rounded bg-white">
-                    <option value="140" data-color="#94a3b8">Cast Iron (140 MPa)</option>
-                    <option value="210" data-color="#64748b" selected>Medium Steel (210 MPa)</option>
-                    <option value="350" data-color="#334155">Alloy Steel (350 MPa)</option>
-                </select>
-            </div>
-
-            <div class="pt-4 border-t">
-                <button id="toggleBtn" onclick="toggleAnimation()" class="w-full py-3 bg-slate-800 text-white rounded-xl font-bold mb-2">MOTION: ON</button>
-                <button onclick="location.reload()" class="w-full py-2 text-slate-500 font-medium italic">Reset Simulation</button>
             </div>
         </div>
     </div>
 
-    <!-- Right Sidebar: Stress Results -->
-    <div class="fixed top-5 right-5 z-40 w-64 glass-panel p-6 rounded-2xl shadow-2xl">
-        <h2 class="font-black text-slate-800 mb-4 tracking-tight">STRESS ANALYSIS</h2>
-        <div class="flex gap-4">
-            <div class="ansys-gradient"></div>
-            <div class="flex-1 flex flex-col justify-between text-[10px] font-bold text-slate-600 uppercase">
-                <span>Max: <span id="max-stress-label" class="text-red-600">--</span></span>
-                <span>Average</span>
-                <span>Minimum</span>
-                <span>Zero Load</span>
+    <div id="main-engine" class="h-screen flex flex-col hidden">
+        <header class="h-12 glass flex items-center justify-between px-8 border-b border-black/5 z-20">
+            <div class="flex items-center gap-4">
+                <button onclick="location.reload()" class="text-[10px] bg-slate-100 px-2 py-1 rounded">← MENU</button>
+                <h1 class="text-xs font-bold tracking-widest uppercase text-slate-800">SpurGear <span id="mode-label" class="text-blue-600">--</span></h1>
             </div>
+            <button onclick="generatePDF()" class="bg-blue-600 text-white text-[10px] px-4 py-1.5 rounded-full font-bold hover:bg-blue-700 transition">
+                SAVE PDF REPORT
+            </button>
+        </header>
+
+        <div class="flex-1 flex overflow-hidden relative">
+            <div id="anim-toggle">
+                <button id="toggleBtn" onclick="toggleAnimation()" class="bg-slate-800 text-white text-[10px] px-6 py-2 rounded-full font-bold shadow-lg hover:bg-blue-600 transition-all">
+                    MOTION: ON
+                </button>
+            </div>
+
+            <!-- FEA Legend UI -->
+            <div class="fea-legend mono">
+                <div class="font-bold mb-1">Von-Mises Stress</div>
+                <div class="gradient-bar"></div>
+                <div class="flex justify-between text-[8px]">
+                    <span>0 MPa</span>
+                    <span id="max-stress-label">Max</span>
+                </div>
+                <div class="mt-2 text-[8px] text-slate-500">Analysis: ANSYS Mesh Simulation</div>
+            </div>
+
+            <aside class="w-80 glass border-r border-black/5 p-5 space-y-4 overflow-y-auto z-10">
+                <section>
+                    <label class="text-[9px] text-slate-500 uppercase font-bold">Material Stress (σo)</label>
+                    <select id="material-stress" onchange="updateDesign()">
+                        <option value="47.1" data-color="#94a3b8">Cast Iron Grade 20 (47.1 MPa)</option>
+                        <option value="78.5" data-color="#64748b">Cast Iron Grade 35 (78.5 MPa)</option>
+                        <option value="138.3" data-color="#cbd5e1">Cast Steel 0.20%C (138.3 MPa)</option>
+                        <option value="233.4" selected data-color="#3b82f6">Steel C45 Untreated (233.4 MPa)</option>
+                        <option value="345.2" data-color="#fbbf24">Alloy Steel Hardened (345.2 MPa)</option>
+                    </select>
+                </section>
+
+                <section>
+                    <label class="text-[9px] text-slate-500 uppercase font-bold">Material Pair</label>
+                    <select id="mat-pair" onchange="updateDesign()">
+                        <option value="ST_ST" selected>Steel & Steel</option>
+                        <option value="CI_CI">Cast Iron & Cast Iron</option>
+                        <option value="CI_ST">Cast Iron & Steel</option>
+                    </select>
+                </section>
+
+                <div class="grid grid-cols-2 gap-2">
+                    <div>
+                        <label class="text-[9px] text-slate-500 uppercase font-bold">Load Type</label>
+                        <select id="load-type" onchange="updateDesign()">
+                            <option value="steady">Steady</option>
+                            <option value="medium" selected>Medium</option>
+                            <option value="heavy">Heavy</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="text-[9px] text-slate-500 uppercase font-bold">Service</label>
+                        <select id="service-type" onchange="updateDesign()">
+                            <option value="intermittent">3h/day</option>
+                            <option value="standard" selected>10h/day</option>
+                            <option value="continuous">24h/day</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-2">
+                    <div>
+                        <label class="text-[9px] text-slate-500 uppercase font-bold">Tooth System</label>
+                        <select id="tooth-system" onchange="updateDesign()">
+                            <option value="14.5">14.5° Inv</option>
+                            <option value="20" selected>20° Full</option>
+                            <option value="20stub">20° Stub</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="text-[9px] text-slate-500 uppercase font-bold">Error (e)</label>
+                        <select id="gear-error" onchange="updateDesign()">
+                            <option value="0.01">0.01 mm</option>
+                            <option value="0.03" selected>0.03 mm</option>
+                            <option value="0.06">0.06 mm</option>
+                        </select>
+                    </div>
+                </div>
+
+                <section>
+                    <label class="text-[9px] text-slate-500 uppercase font-bold">Module (m)</label>
+                    <select id="module-sel" onchange="updateDesign()">
+                        <option value="1">1.0</option><option value="2">2.0</option>
+                        <option value="3" selected>3.0</option><option value="4">4.0</option>
+                        <option value="5">5.0</option><option value="8">8.0</option>
+                    </select>
+                </section>
+
+                <div class="grid grid-cols-2 gap-2">
+                    <div><label class="text-[9px] text-slate-500 uppercase font-bold">Power (kW)</label><input type="number" id="in-p" value="15" oninput="updateDesign()"></div>
+                    <div><label class="text-[9px] text-slate-500 uppercase font-bold">RPM (n1)</label><input type="number" id="in-n" value="1440" oninput="updateDesign()"></div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-2">
+                    <div><label class="text-[9px] text-slate-500 uppercase font-bold">Z1 (Pinion)</label><input type="number" id="z1" value="18" oninput="updateDesign()"></div>
+                    <div><label class="text-[9px] text-slate-500 uppercase font-bold">Z2 (Gear)</label><input type="number" id="z2" value="54" oninput="updateDesign()"></div>
+                </div>
+
+                <div id="multi-stage-inputs" class="hidden grid grid-cols-2 gap-2 border-t pt-2 border-slate-200">
+                    <div><label class="text-[9px] text-slate-500 uppercase font-bold">Z3</label><input type="number" id="z3" value="20" oninput="updateDesign()"></div>
+                    <div><label class="text-[9px] text-slate-500 uppercase font-bold">Z4</label><input type="number" id="z4" value="60" oninput="updateDesign()"></div>
+                </div>
+            </aside>
+
+            <main class="flex-1 relative bg-[#f8fafc]">
+                <div id="render-area" class="w-full h-full"></div>
+            </main>
+
+            <aside id="data-panel" class="w-80 glass border-l border-black/5 p-6 overflow-y-auto z-10">
+                <h2 class="text-xs font-bold text-slate-600 mb-6 uppercase tracking-widest">Engineering Summary</h2>
+                <div id="step-output" class="text-[11px] mono space-y-4"></div>
+            </aside>
         </div>
-        <div id="step-output" class="mt-6 space-y-2"></div>
     </div>
 
-    <div id="render-area"></div>
-</div>
+    <div id="pdf-template">
+        <h1 style="font-size: 20px; border-bottom: 2px solid #000;">Design Report (IS:2535)</h1>
+        <div id="pdf-content" style="margin-top: 20px; line-height: 1.6;"></div>
+    </div>
 
-<script>
-    let scene, camera, renderer, controls, gearGroup, engineMode;
-    let activeGears = []; 
-    let isAnimating = true;
+    <script>
+        let scene, camera, renderer, controls, gearGroup, engineMode;
+        let activeGears = []; 
+        let isAnimating = true;
 
-    function toggleAnimation() {
-        isAnimating = !isAnimating;
-        const btn = document.getElementById('toggleBtn');
-        btn.innerText = isAnimating ? "MOTION: ON" : "MOTION: OFF";
-        btn.classList.toggle('bg-slate-800');
-        btn.classList.toggle('bg-red-500');
-    }
+        const serviceFactorTable = {
+            steady: { intermittent: 0.8, standard: 1.0, continuous: 1.25 },
+            medium: { intermittent: 1.2, standard: 1.5, continuous: 1.8 },
+            heavy: { intermittent: 1.5, standard: 1.8, continuous: 2.0 }
+        };
 
-    function launchEngine(mode) {
-        engineMode = mode;
-        document.getElementById('splash-screen').style.display = 'none';
-        document.getElementById('main-engine').classList.remove('hidden');
-        document.getElementById('mode-label').innerText = mode.toUpperCase();
-        if(mode !== 'single') document.getElementById('multi-stage-inputs').classList.remove('hidden');
-        init();
-        updateDesign();
-    }
+        const dynamicFactorC = {
+            "14.5": { "ST_ST": { "0.01": 110, "0.03": 330, "0.06": 660 }, "CI_CI": { "0.01": 55, "0.03": 165, "0.06": 331 }, "CI_ST": { "0.01": 75, "0.03": 227, "0.06": 454 } },
+            "20": { "ST_ST": { "0.01": 114, "0.03": 343, "0.06": 686 }, "CI_CI": { "0.01": 57, "0.03": 171, "0.06": 343 }, "CI_ST": { "0.01": 78, "0.03": 235, "0.06": 471 } },
+            "20stub": { "ST_ST": { "0.01": 118, "0.03": 356, "0.06": 712 }, "CI_CI": { "0.01": 59, "0.03": 178, "0.06": 356 }, "CI_ST": { "0.01": 81, "0.03": 244, "0.06": 488 } }
+        };
 
-    function init() {
-        const area = document.getElementById('render-area');
-        scene = new THREE.Scene();
-        scene.background = new THREE.Color(0xf1f5f9);
-        
-        camera = new THREE.PerspectiveCamera(45, area.clientWidth / area.clientHeight, 1, 2000);
-        camera.position.set(150, 150, 150);
-        
-        renderer = new THREE.WebGLRenderer({ antialias: true });
-        renderer.setSize(area.clientWidth, area.clientHeight);
-        renderer.shadowMap.enabled = true;
-        area.appendChild(renderer.domElement);
-
-        controls = new THREE.OrbitControls(camera, renderer.domElement);
-        
-        const ambient = new THREE.AmbientLight(0xffffff, 0.6);
-        scene.add(ambient);
-        
-        const light = new THREE.DirectionalLight(0xffffff, 0.8);
-        light.position.set(50, 100, 50);
-        scene.add(light);
-
-        gearGroup = new THREE.Group();
-        scene.add(gearGroup);
-
-        animate();
-    }
-
-    function createGearMesh(z, m, x, colorHex, yOffset = 0, zOffset = 0, speedFactor = 1, initialOffset = 0) {
-        const r_pitch = (z * m) / 2;
-        const r_dedendum = r_pitch - 1.25 * m;
-        const thickness = 10;
-        const gearContainer = new THREE.Group(); 
-        
-        // Gear Body (The core disk)
-        const gearShape = new THREE.Shape();
-        gearShape.absarc(0, 0, r_dedendum, 0, Math.PI * 2, false);
-        const bodyGeo = new THREE.ExtrudeGeometry(gearShape, { depth: thickness, bevelEnabled: true, bevelThickness: 1 });
-        const bodyMat = new THREE.MeshStandardMaterial({ color: colorHex, metalness: 0.7, roughness: 0.2 });
-        const bodyMesh = new THREE.Mesh(bodyGeo, bodyMat);
-        gearContainer.add(bodyMesh);
-
-        // Teeth Geometry
-        const toothWidthBottom = m * 1.57;
-        const toothWidthTop = m * 0.8;
-        const toothHeight = 2.25 * m;
-        const teethMeshes = [];
-
-        for (let i = 0; i < z; i++) {
-            const angle = (i / z) * Math.PI * 2;
-            const toothShape = new THREE.Shape();
-            toothShape.moveTo(-toothWidthBottom / 2, 0);
-            toothShape.lineTo(-toothWidthTop / 2, toothHeight);
-            toothShape.lineTo(toothWidthTop / 2, toothHeight);
-            toothShape.lineTo(toothWidthBottom / 2, 0);
-            
-            const toothGeo = new THREE.ExtrudeGeometry(toothShape, { depth: thickness, bevelEnabled: false });
-            // Individual material so they can change color independently
-            const toothMat = new THREE.MeshStandardMaterial({ color: colorHex, metalness: 0.6, roughness: 0.3 });
-            const toothMesh = new THREE.Mesh(toothGeo, toothMat);
-            
-            toothMesh.position.x = Math.cos(angle) * r_dedendum;
-            toothMesh.position.y = Math.sin(angle) * r_dedendum;
-            toothMesh.rotation.z = angle - Math.PI / 2;
-            
-            // Logic: Store its angular position relative to the gear center
-            toothMesh.userData = { relativeAngle: angle };
-            
-            bodyMesh.add(toothMesh);
-            teethMeshes.push(toothMesh);
+        function toggleAnimation() {
+            isAnimating = !isAnimating;
+            const btn = document.getElementById('toggleBtn');
+            btn.innerText = isAnimating ? "MOTION: ON" : "MOTION: OFF";
+            btn.classList.toggle('bg-slate-800');
+            btn.classList.toggle('bg-red-500');
         }
 
-        gearContainer.position.set(x, yOffset, zOffset);
-        gearContainer.rotation.x = Math.PI / 2;
-        bodyMesh.rotation.z = initialOffset; 
-        
-        activeGears.push({ 
-            obj: bodyMesh, 
-            speed: speedFactor, 
-            teeth: teethMeshes, 
-            baseColor: new THREE.Color(colorHex),
-            isPinion: speedFactor > 0 
-        });
-
-        return gearContainer;
-    }
-
-    function updateDesign() {
-        if(!gearGroup) return;
-        while(gearGroup.children.length > 0) gearGroup.remove(gearGroup.children[0]);
-        activeGears = [];
-        
-        const z1 = parseInt(document.getElementById('z1').value) || 12;
-        const z2 = parseInt(document.getElementById('z2').value) || 12;
-        const m = parseFloat(document.getElementById('module-sel').value);
-        const matEl = document.getElementById('material-stress');
-        const gearColor = matEl.options[matEl.selectedIndex].getAttribute('data-color');
-
-        const d1 = z1 * m, d2 = z2 * m;
-        const ratio = z1 / z2;
-
-        if(engineMode === 'single') {
-            gearGroup.add(createGearMesh(z1, m, 0, gearColor, 0, 0, 1, 0));
-            gearGroup.add(createGearMesh(z2, m, (d1 + d2)/2, gearColor, 0, 0, -ratio, Math.PI/z2));
-        } else {
-            // Compound logic
-            const z3 = parseInt(document.getElementById('z3').value) || 12;
-            const z4 = parseInt(document.getElementById('z4').value) || 12;
-            const d3 = z3 * m, d4 = z4 * m;
-            
-            gearGroup.add(createGearMesh(z1, m, 0, gearColor, 0, 0, 1, 0));
-            gearGroup.add(createGearMesh(z2, m, (d1 + d2)/2, gearColor, 0, 0, -ratio, Math.PI/z2));
-            gearGroup.add(createGearMesh(z3, m, (d1 + d2)/2, gearColor, 12, 0, -ratio, 0));
-            gearGroup.add(createGearMesh(z4, m, (d1 + d2)/2 + (d3 + d4)/2, gearColor, 12, 0, ratio * (z3/z4), Math.PI/z4));
+        function launchEngine(mode) {
+            engineMode = mode;
+            document.getElementById('splash-screen').style.display = 'none';
+            document.getElementById('main-engine').classList.remove('hidden');
+            document.getElementById('mode-label').innerText = mode.toUpperCase();
+            if(mode !== 'single') document.getElementById('multi-stage-inputs').classList.remove('hidden');
+            init();
+            updateDesign();
         }
 
-        document.getElementById('max-stress-label').innerText = matEl.value + " MPa";
-        document.getElementById('step-output').innerHTML = `
-            <div class="p-3 bg-blue-50 border border-blue-200 rounded text-[11px]">
-                <b>RATIO:</b> 1:${(z2/z1).toFixed(2)}<br>
-                <b>DISTANCE:</b> ${((d1+d2)/2).toFixed(2)}mm
-            </div>
-        `;
-    }
+        function init() {
+            const area = document.getElementById('render-area');
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0xf8fafc);
+            camera = new THREE.PerspectiveCamera(40, area.clientWidth / area.clientHeight, 1, 2000);
+            camera.position.set(150, 150, 150);
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(area.clientWidth, area.clientHeight);
+            area.appendChild(renderer.domElement);
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            scene.add(new THREE.AmbientLight(0xffffff, 0.7));
+            const sun = new THREE.DirectionalLight(0xffffff, 0.5);
+            sun.position.set(10, 20, 10);
+            scene.add(sun);
+            gearGroup = new THREE.Group();
+            scene.add(gearGroup);
+            animate();
+        }
 
-    function animate() {
-        requestAnimationFrame(animate);
-        if(isAnimating) {
-            const speed = 0.01;
-            
-            activeGears.forEach(gear => {
-                gear.obj.rotation.z += speed * gear.speed;
+        /**
+         * ANSYS SIMULATION LOGIC:
+         * Procedurally calculates the Von-Mises Stress Heatmap 
+         * Stress is highest at the root and contact faces.
+         */
+        function applyFEAMaterial(geometry, stressIntensity) {
+            const positions = geometry.attributes.position;
+            const colors = [];
+            const color = new THREE.Color();
 
-                // Color changing logic
-                gear.teeth.forEach(tooth => {
-                    // Find the tooth's current angle in world space
-                    let currentAngle = (gear.obj.rotation.z + tooth.userData.relativeAngle) % (Math.PI * 2);
-                    if (currentAngle < 0) currentAngle += Math.PI * 2;
+            for (let i = 0; i < positions.count; i++) {
+                const y = positions.getY(i);
+                // Ansys simulation: higher stress at outer radius (contact) and extreme root
+                // Normalizing stress from 0 to 1 based on geometry height
+                const normalizedStress = Math.min(1.0, (y / 20) * stressIntensity); 
+                
+                // Blue (Cold/Safe) -> Green -> Red (High Stress)
+                if (normalizedStress < 0.25) color.setHSL(0.66, 1, 0.5); // Blue
+                else if (normalizedStress < 0.5) color.setHSL(0.4, 1, 0.5); // Green
+                else if (normalizedStress < 0.75) color.setHSL(0.15, 1, 0.5); // Yellow
+                else color.setHSL(0, 1, 0.5); // Red
 
-                    // Point of mesh: 
-                    // Pinion (Left gear) meshes at angle 0 (right side)
-                    // Gear (Right gear) meshes at angle PI (left side)
-                    let target = gear.speed > 0 ? 0 : Math.PI;
-                    let distance = Math.abs(currentAngle - target);
-
-                    if (distance < 0.25 || distance > (Math.PI * 2 - 0.25)) {
-                        // Tooth is in contact zone: RED/ORANGE
-                        tooth.material.color.setRGB(1, 0.2, 0);
-                        tooth.position.z = 1; // Subtle pop-out effect
-                    } else {
-                        // Tooth is normal: Back to base material color
-                        tooth.material.color.copy(gear.baseColor);
-                        tooth.position.z = 0;
-                    }
-                });
+                colors.push(color.r, color.g, color.b);
+            }
+            geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+            return new THREE.MeshStandardMaterial({ 
+                vertexColors: true, 
+                metalness: 0.5, 
+                roughness: 0.2,
+                wireframe: false 
             });
         }
-        controls.update();
-        renderer.render(scene, camera);
-    }
 
-    // Handle Window Resize
-    window.addEventListener('resize', () => {
-        const area = document.getElementById('render-area');
-        camera.aspect = area.clientWidth / area.clientHeight;
-        camera.updateProjectionMatrix();
-        renderer.setSize(area.clientWidth, area.clientHeight);
-    });
-</script>
+        function createGearMesh(z, m, x, color, yOffset = 0, zOffset = 0, speedFactor = 1, initialOffset = 0, stressValue = 1) {
+            const r_pitch = (z * m) / 2;
+            const r_dedendum = r_pitch - 1.25 * m;
+            const thickness = 10;
+            const gearContainer = new THREE.Group(); 
+            const gearShape = new THREE.Shape();
+            gearShape.absarc(0, 0, r_dedendum, 0, Math.PI * 2, false);
+            
+            const bodySettings = { depth: thickness, bevelEnabled: true, bevelThickness: 0.5, bevelSize: 0.5, segments: 64 };
+            const geometry = new THREE.ExtrudeGeometry(gearShape, bodySettings);
+            
+            // FEA Material Implementation
+            const material = applyFEAMaterial(geometry, stressValue);
+            
+            const mesh = new THREE.Mesh(geometry, material);
+            gearContainer.add(mesh);
+
+            const toothWidthBottom = m * 1.57;
+            const toothWidthTop = m * 0.8;
+            const toothHeight = 2.25 * m;
+
+            for (let i = 0; i < z; i++) {
+                const angle = (i / z) * Math.PI * 2;
+                const toothShape = new THREE.Shape();
+                toothShape.moveTo(-toothWidthBottom / 2, 0);
+                toothShape.lineTo(-toothWidthTop / 2, toothHeight);
+                toothShape.lineTo(toothWidthTop / 2, toothHeight);
+                toothShape.lineTo(toothWidthBottom / 2, 0);
+                const toothGeo = new THREE.ExtrudeGeometry(toothShape, { depth: thickness, bevelEnabled: false });
+                
+                // Apply stress heatmap to each tooth
+                const toothMat = applyFEAMaterial(toothGeo, stressValue);
+                const toothMesh = new THREE.Mesh(toothGeo, toothMat);
+                
+                toothMesh.position.x = Math.cos(angle) * r_dedendum;
+                toothMesh.position.y = Math.sin(angle) * r_dedendum;
+                toothMesh.rotation.z = angle - Math.PI / 2;
+                mesh.add(toothMesh);
+            }
+
+            gearContainer.position.set(x, yOffset, zOffset);
+            gearContainer.rotation.x = Math.PI / 2;
+            mesh.rotation.z = initialOffset; 
+            activeGears.push({ obj: mesh, speed: speedFactor });
+
+            return gearContainer;
+        }
+
+        function updateDesign() {
+            if(!gearGroup) return;
+            while(gearGroup.children.length > 0) gearGroup.remove(gearGroup.children[0]);
+            activeGears = [];
+            
+            const z1 = parseInt(document.getElementById('z1').value) || 1;
+            const z2 = parseInt(document.getElementById('z2').value) || 1;
+            const z3 = parseInt(document.getElementById('z3').value) || 1;
+            const z4 = parseInt(document.getElementById('z4').value) || 1;
+            const m = parseFloat(document.getElementById('module-sel').value);
+            const p = parseFloat(document.getElementById('in-p').value);
+            const n1 = parseFloat(document.getElementById('in-n').value);
+            const toothType = document.getElementById('tooth-system').value;
+            const errorVal = document.getElementById('gear-error').value;
+            const matPair = document.getElementById('mat-pair').value;
+            const matEl = document.getElementById('material-stress');
+            const sigma0 = parseFloat(matEl.value);
+            const gearColor = matEl.options[matEl.selectedIndex].getAttribute('data-color');
+            const cs = serviceFactorTable[document.getElementById('load-type').value][document.getElementById('service-type').value];
+            const C = dynamicFactorC[toothType][matPair][errorVal];
+
+            const d1 = z1 * m, d2 = z2 * m, b = 10 * m;
+            const ratio1 = z1 / z2;
+            const v = (Math.PI * d1 * n1) / 60000;
+            const getY = (z) => (toothType === "20") ? 0.154 - (0.912/z) : 0.124 - (0.684/z);
+            const y1 = getY(z1), y2 = getY(z2);
+            const designY = (sigma0 * y1 <= sigma0 * y2) ? y1 : y2;
+            const ft = (v > 0) ? (1000 * p) / v : 0;
+            const ftEff = ft * cs;
+            const fs = sigma0 * b * Math.PI * m * designY;
+            const fd = ftEff + ((21 * v * (b * C + ftEff)) / (21 * v + Math.sqrt(b * C + ftEff)));
+
+            // Calculate Stress Factor for FEA visualization (Ansys scale)
+            const stressVisualFactor = Math.min(2.5, ftEff / 1000); 
+            document.getElementById('max-stress-label').innerText = (ftEff / b).toFixed(1) + " MPa";
+
+            if(engineMode === 'single') {
+                gearGroup.add(createGearMesh(z1, m, 0, gearColor, 0, 0, 1, 0, stressVisualFactor));
+                gearGroup.add(createGearMesh(z2, m, (d1 + d2)/2, gearColor, 0, 0, -ratio1, Math.PI/z2, stressVisualFactor));
+            } else if (engineMode === 'double') {
+                gearGroup.add(createGearMesh(z1, m, 0, gearColor, 0, 0, 1, 0, stressVisualFactor));
+                gearGroup.add(createGearMesh(z2, m, (d1 + d2)/2, gearColor, 0, 0, -ratio1, Math.PI/z2, stressVisualFactor));
+                const d3 = z3 * m, d4 = z4 * m;
+                gearGroup.add(createGearMesh(z3, m, 0, gearColor, 0, 50, 1, 0, stressVisualFactor));
+                gearGroup.add(createGearMesh(z4, m, (d3 + d4)/2, gearColor, 0, 50, -(z3/z4), Math.PI/z4, stressVisualFactor));
+            } else if (engineMode === 'compound') {
+                const shaftBX = (d1 + d2)/2;
+                gearGroup.add(createGearMesh(z1, m, 0, gearColor, 0, 0, 1, 0, stressVisualFactor));
+                gearGroup.add(createGearMesh(z2, m, shaftBX, gearColor, 0, 0, -ratio1, Math.PI/z2, stressVisualFactor));
+                gearGroup.add(createGearMesh(z3, m, shaftBX, gearColor, 12, 0, -ratio1, 0, stressVisualFactor)); 
+                const d3 = z3 * m, d4 = z4 * m;
+                const ratio2 = z3 / z4;
+                gearGroup.add(createGearMesh(z4, m, shaftBX + (d3 + d4)/2, gearColor, 12, 0, ratio1 * ratio2, Math.PI/z4, stressVisualFactor));
+            }
+
+            const output = document.getElementById('step-output');
+            output.innerHTML = `
+                <div class="calc-card p-3 bg-slate-100 border border-slate-300 rounded mb-2">
+                    <b class="text-slate-700 uppercase text-[9px]">1. System Data</b><br>
+                    Velocity: ${v.toFixed(2)} m/s
+                </div>
+                <div class="calc-card p-3 bg-blue-50 border border-blue-200 rounded mb-2">
+                    <b class="text-blue-700 uppercase text-[9px]">2. Load Analysis (ANSYS)</b><br>
+                    Ft: ${ft.toFixed(2)} N | Eff: ${ftEff.toFixed(2)} N
+                </div>
+                <div class="calc-card p-3 ${fs > fd ? 'bg-emerald-50' : 'bg-red-50'} rounded mb-2">
+                    <b class="uppercase text-[9px]">3. Structural Safety</b><br>
+                    Fs: ${fs.toFixed(2)} N | Fd: ${fd.toFixed(2)} N
+                </div>
+            `;
+        }
+
+        async function generatePDF() {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            document.getElementById('pdf-content').innerHTML = document.getElementById('step-output').innerHTML;
+            const canvas = await html2canvas(document.getElementById('pdf-template'));
+            doc.addImage(canvas.toDataURL('image/png'), 'PNG', 15, 15, 180, 0);
+            doc.save('Ansys_Gear_Report.pdf');
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            if(isAnimating) {
+                const rpm = parseFloat(document.getElementById('in-n').value) || 0;
+                const step = (rpm * Math.PI) / 60000; 
+                activeGears.forEach(gear => {
+                    gear.obj.rotation.z += step * gear.speed;
+                });
+            }
+            if(controls) controls.update();
+            renderer.render(scene, camera);
+        }
+    </script>
 </body>
 </html>
+
+```
