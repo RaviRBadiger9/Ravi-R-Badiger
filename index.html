@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SpurGear Pro | Engineering PDF Suite</title>
+    <title>SpurGear Pro | Lewis Factor Suite</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
@@ -39,20 +39,27 @@
             <aside class="w-72 glass border-r border-black/5 p-6 space-y-4 overflow-y-auto z-10">
                 
                 <section>
-                    <label class="text-[9px] text-slate-500 uppercase font-bold">Gear Quality (Velocity Factor Cv)</label>
-                    <select id="cv-type" onchange="updateDesign()">
-                        <option value="rough">Commercial Cut (v < 10m/s)</option>
-                        <option value="medium" selected>Generated Teeth (v < 20m/s)</option>
-                        <option value="high">Precision Ground (v > 20m/s)</option>
+                    <label class="text-[9px] text-slate-500 uppercase font-bold">Tooth System (Table 12.5)</label>
+                    <select id="tooth-system" onchange="updateDesign()">
+                        <option value="14.5">14.5° Involute System</option>
+                        <option value="20">20° Full Depth Involute</option>
+                        <option value="20stub">20° Stub Teeth System</option>
                     </select>
                 </section>
 
                 <section>
-                    <label class="text-[9px] text-slate-500 uppercase font-bold">Module (m) [Table 12.2]</label>
+                    <label class="text-[9px] text-slate-500 uppercase font-bold">Gear Quality (Cv)</label>
+                    <select id="cv-type" onchange="updateDesign()">
+                        <option value="rough">Commercial Cut</option>
+                        <option value="medium" selected>Generated Teeth</option>
+                        <option value="high">Precision Ground</option>
+                    </select>
+                </section>
+
+                <section>
+                    <label class="text-[9px] text-slate-500 uppercase font-bold">Module (m)</label>
                     <select id="module-sel" onchange="updateDesign()">
-                        <option value="1.5">1.5 mm</option>
                         <option value="2">2.0 mm</option>
-                        <option value="2.5">2.5 mm</option>
                         <option value="3" selected>3.0 mm</option>
                         <option value="4">4.0 mm</option>
                         <option value="5">5.0 mm</option>
@@ -61,12 +68,7 @@
 
                 <section class="grid grid-cols-2 gap-2">
                     <div><label class="text-[9px] text-slate-500 uppercase font-bold">Power (kW)</label><input type="number" id="in-p" value="15" oninput="updateDesign()"></div>
-                    <div><label class="text-[9px] text-slate-500 uppercase font-bold">Input RPM</label><input type="number" id="in-n" value="1440" oninput="updateDesign()"></div>
-                </section>
-
-                <section class="grid grid-cols-2 gap-2">
-                    <div><label class="text-[9px] text-slate-500 uppercase font-bold">Z1 (Pinion)</label><input type="number" id="z1" value="20" oninput="updateDesign()"></div>
-                    <div><label class="text-[9px] text-slate-500 uppercase font-bold">Z2 (Gear)</label><input type="number" id="z2" value="60" oninput="updateDesign()"></div>
+                    <div><label class="text-[9px] text-slate-500 uppercase font-bold">Z1 (Pinion)</label><input type="number" id="z1" value="18" oninput="updateDesign()"></div>
                 </section>
             </aside>
 
@@ -75,14 +77,14 @@
             </main>
 
             <aside id="data-panel" class="w-80 glass border-l border-black/5 p-6 overflow-y-auto z-10">
-                <h2 class="text-xs font-bold text-slate-600 mb-6 uppercase tracking-widest">Calculated Results</h2>
+                <h2 class="text-xs font-bold text-slate-600 mb-6 uppercase tracking-widest">Design Summary</h2>
                 <div id="step-output" class="text-[11px] mono space-y-4"></div>
             </aside>
         </div>
     </div>
 
     <div id="pdf-template">
-        <h1 style="font-size: 20px; border-bottom: 2px solid #000;">Engineering Design Report (IS:2535)</h1>
+        <h1 style="font-size: 20px; border-bottom: 2px solid #000;">Gear Calculation Report (IS:2535 & Table 12.5)</h1>
         <div id="pdf-content" style="margin-top: 20px; line-height: 1.6;"></div>
     </div>
 
@@ -117,65 +119,63 @@
             while(gearGroup.children.length > 0) gearGroup.remove(gearGroup.children[0]);
             
             const z1 = parseFloat(document.getElementById('z1').value) || 1;
-            const z2 = parseFloat(document.getElementById('z2').value) || 1;
             const m = parseFloat(document.getElementById('module-sel').value);
-            const p = parseFloat(document.getElementById('in-p').value);
-            const n = parseFloat(document.getElementById('in-n').value);
-            const cvType = document.getElementById('cv-type').value;
+            const toothType = document.getElementById('tooth-system').value;
 
-            // 1. Geometric PCD
-            const d1 = z1 * m;
-            const d2 = z2 * m;
-            const v = (Math.PI * d1 * n) / (60 * 1000); // Velocity m/s
-
-            // 2. Tangential Force Ft (From handwritten notes)
-            const ft = (v > 0) ? (1000 * p) / v : 0; 
-
-            // 3. Velocity Factor Cv
-            let cv = 0;
-            let cvFormula = "";
-            if(cvType === "rough") {
-                cv = 3 / (3 + v);
-                cvFormula = "3 / (3 + v)";
-            } else if(cvType === "medium") {
-                cv = 6 / (6 + v);
-                cvFormula = "6 / (6 + v)";
-            } else {
-                cv = 5.6 / (5.6 + Math.sqrt(v));
-                cvFormula = "5.6 / (5.6 + √v)";
+            // 1. Lewis Form Factor (y) from Table 12.5
+            let y = 0;
+            let yFormula = "";
+            if (toothType === "14.5") {
+                y = 0.124 - (0.684 / z1);
+                yFormula = "0.124 - (0.684 / z)";
+            } else if (toothType === "20") {
+                y = 0.154 - (0.912 / z1);
+                yFormula = "0.154 - (0.912 / z)";
+            } else if (toothType === "20stub") {
+                y = 0.175 - (0.95 / z1);
+                yFormula = "0.175 - (0.95 / z)";
             }
 
-            // 4. Effective Load
-            const fEff = ft / cv;
+            // 2. Form Factor (Y)
+            const Y = Math.PI * y;
 
             // Update Visuals
-            gearGroup.add(createMesh(z1, m, 0, 0x3b82f6));
-            gearGroup.add(createMesh(z2, m, (d1+d2)/2, 0x94a3b8));
+            const r1 = (z1 * m) / 2;
+            const gearGeo = new THREE.CylinderGeometry(r1, r1, 10, 32);
+            gearGroup.add(new THREE.Mesh(gearGeo, new THREE.MeshStandardMaterial({ color: 0x3b82f6 })));
 
             document.getElementById('step-output').innerHTML = `
                 <div class="space-y-3">
-                    <div class="p-3 bg-slate-50 border rounded">
-                        <b class="text-blue-600">1. VELOCITY (v)</b><br>
-                        v = (π × d1 × n) / 60000<br>
-                        Result: <b>${v.toFixed(2)} m/s</b>
-                    </div>
-                    <div class="p-3 bg-slate-50 border rounded">
-                        <b class="text-blue-600">2. TANGENTIAL FORCE (Ft)</b><br>
-                        Ft = (1000 × P) / v<br>
-                        Result: <b>${ft.toFixed(2)} N</b>
-                    </div>
                     <div class="p-3 bg-blue-50 border border-blue-200 rounded">
-                        <b class="text-blue-700">3. VELOCITY FACTOR (Cv)</b><br>
-                        Formula: ${cvFormula}<br>
-                        Result: <b>${cv.toFixed(4)}</b>
+                        <b class="text-blue-700">LEWIS FORM FACTOR (Table 12.5)</b><br>
+                        Type: ${toothType}° System<br>
+                        Formula: ${yFormula}<br>
+                        Result (y): <b>${y.toFixed(4)}</b>
                     </div>
-                    <div class="p-3 bg-amber-50 border border-amber-200 rounded">
-                        <b class="text-amber-700">4. EFFECTIVE LOAD (Feff)</b><br>
-                        Feff = Ft / Cv<br>
-                        Result: <b>${fEff.toFixed(2)} N</b>
+                    <div class="p-3 bg-indigo-50 border border-indigo-200 rounded">
+                        <b class="text-indigo-700">FORM FACTOR (Y)</b><br>
+                        Formula: Y = π × y<br>
+                        Result (Y): <b>${Y.toFixed(4)}</b>
+                    </div>
+                    <div class="text-[9px] text-slate-400 italic px-1">
+                        Note: Lewis factors are based on the number of teeth (z1) and the selected pressure angle system.
                     </div>
                 </div>
             `;
+        }
+
+        async function generatePDF() {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            document.getElementById('pdf-content').innerHTML = document.getElementById('step-output').innerHTML;
+            const canvas = await html2canvas(document.getElementById('pdf-template'));
+            doc.addImage(canvas.toDataURL('image/png'), 'PNG', 15, 15, 180, 0);
+            doc.save('Gear_Lewis_Report.pdf');
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            if(renderer) renderer.render(scene, camera);
         }
 
         function createMesh(z, m, x, color) {
@@ -185,20 +185,6 @@
             mesh.position.x = x;
             mesh.rotation.x = Math.PI/2;
             return mesh;
-        }
-
-        async function generatePDF() {
-            const { jsPDF } = window.jspdf;
-            const doc = new jsPDF();
-            document.getElementById('pdf-content').innerHTML = document.getElementById('step-output').innerHTML;
-            const canvas = await html2canvas(document.getElementById('pdf-template'));
-            doc.addImage(canvas.toDataURL('image/png'), 'PNG', 15, 15, 180, 0);
-            doc.save('Gear_Velocity_Report.pdf');
-        }
-
-        function animate() {
-            requestAnimationFrame(animate);
-            if(renderer) renderer.render(scene, camera);
         }
     </script>
 </body>
