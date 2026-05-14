@@ -1,7 +1,9 @@
-<!DOCTYPE html><html lang="en"><head>
+<!DOCTYPE html>
+<html lang="en">
+<head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SpurGear Pro | Engineering PDF Suite</title>
+    <title>SpurGear Pro | Analytical Engineering Suite</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
@@ -18,7 +20,9 @@
         .option-card { background: white; padding: 2rem; border-radius: 12px; width: 320px; cursor: pointer; border: 2px solid transparent; transition: all 0.3s; }
         .option-card:hover { transform: translateY(-5px); border-color: #3b82f6; }
         #pdf-template { position: absolute; left: -9999px; width: 800px; padding: 40px; background: white; color: black; }
-    </style></head><body>
+    </style>
+</head>
+<body>
 
     <div id="splash-screen">
         <div class="max-w-5xl w-full px-8 text-center">
@@ -55,93 +59,81 @@
             <aside class="w-80 glass border-r border-black/5 p-5 space-y-4 overflow-y-auto z-10">
                 
                 <section>
-                    <label class="text-[9px] text-slate-500 uppercase font-bold">Gear Material (Table 12.7)</label>
+                    <label class="text-[9px] text-slate-500 uppercase font-bold">Material Stress (σo)</label>
                     <select id="material-stress" onchange="updateDesign()">
-                        <option value="47.1">Cast Iron Grade 20</option>
-                        <option value="56.4">Cast Iron Grade 25</option>
-                        <option value="78.5">Cast Iron Grade 35</option>
-                        <option value="138.3">Cast Steel 0.20%C (Untreated)</option>
-                        <option value="193.2">Cast Steel 0.20%C (Heat Treated)</option>
-                        <option value="138.3">Phosphor Gear Bronze</option>
-                        <option value="172.6">Forged Steel 0.30%C (Untreated)</option>
-                        <option value="220.0">Forged Steel 0.30%C (Heat Treated)</option>
-                        <option value="207.0">Steel C40 (Untreated)</option>
-                        <option value="233.4" selected>Steel C45 (Untreated)</option>
-                        <option value="345.2">Alloy Steel (Case Hardened)</option>
-                        <option value="41.2">Plastic (Bakelite/Celon)</option>
+                        <option value="47.1">Cast Iron Grade 20 (47.1 MPa)</option>
+                        <option value="78.5">Cast Iron Grade 35 (78.5 MPa)</option>
+                        <option value="138.3">Cast Steel 0.20%C (138.3 MPa)</option>
+                        <option value="233.4" selected>Steel C45 Untreated (233.4 MPa)</option>
+                        <option value="345.2">Alloy Steel Hardened (345.2 MPa)</option>
                     </select>
                 </section>
 
                 <section>
-                    <label class="text-[9px] text-slate-500 uppercase font-bold">Material Combination (Table 12.12)</label>
+                    <label class="text-[9px] text-slate-500 uppercase font-bold">Material Pair</label>
                     <select id="mat-pair" onchange="updateDesign()">
+                        <option value="ST_ST" selected>Steel & Steel</option>
                         <option value="CI_CI">Cast Iron & Cast Iron</option>
                         <option value="CI_ST">Cast Iron & Steel</option>
-                        <option value="ST_ST" selected>Steel & Steel</option>
                     </select>
                 </section>
 
-                <section class="grid grid-cols-2 gap-2">
+                <div class="grid grid-cols-2 gap-2">
                     <div>
-                        <label class="text-[9px] text-slate-500 uppercase font-bold">Load Type (Table 12.8)</label>
+                        <label class="text-[9px] text-slate-500 uppercase font-bold">Load Type</label>
                         <select id="load-type" onchange="updateDesign()">
                             <option value="steady">Steady</option>
-                            <option value="light">Light Shocks</option>
-                            <option value="medium" selected>Medium Shocks</option>
-                            <option value="heavy">Heavy Shocks</option>
+                            <option value="medium" selected>Medium</option>
+                            <option value="heavy">Heavy</option>
                         </select>
                     </div>
                     <div>
-                        <label class="text-[9px] text-slate-500 uppercase font-bold">Service (Table 12.8)</label>
+                        <label class="text-[9px] text-slate-500 uppercase font-bold">Service</label>
                         <select id="service-type" onchange="updateDesign()">
-                            <option value="intermittent">Intermittent (3h/day)</option>
-                            <option value="standard" selected>8 to 10 h/day</option>
-                            <option value="continuous">Continuous (24h/day)</option>
+                            <option value="intermittent">3h/day</option>
+                            <option value="standard" selected>10h/day</option>
+                            <option value="continuous">24h/day</option>
                         </select>
                     </div>
-                </section>
+                </div>
 
-                <section class="grid grid-cols-2 gap-2">
+                <div class="grid grid-cols-2 gap-2">
                     <div>
                         <label class="text-[9px] text-slate-500 uppercase font-bold">Tooth System</label>
                         <select id="tooth-system" onchange="updateDesign()">
-                            <option value="14.5">14.5° Involute</option>
-                            <option value="20" selected>20° Full Depth</option>
-                            <option value="20stub">20° Stub Teeth</option>
+                            <option value="14.5">14.5° Inv</option>
+                            <option value="20" selected>20° Full</option>
+                            <option value="20stub">20° Stub</option>
                         </select>
                     </div>
                     <div>
-                        <label class="text-[9px] text-slate-500 uppercase font-bold">Gear Error (mm)</label>
+                        <label class="text-[9px] text-slate-500 uppercase font-bold">Error (e)</label>
                         <select id="gear-error" onchange="updateDesign()">
-                            <option value="0.01">0.01</option>
-                            <option value="0.02">0.02</option>
-                            <option value="0.03" selected>0.03</option>
-                            <option value="0.04">0.04</option>
-                            <option value="0.06">0.06</option>
-                            <option value="0.08">0.08</option>
-                            <option value="0.10">0.10</option>
+                            <option value="0.01">0.01 mm</option>
+                            <option value="0.03" selected>0.03 mm</option>
+                            <option value="0.06">0.06 mm</option>
                         </select>
                     </div>
-                </section>
+                </div>
 
                 <section>
                     <label class="text-[9px] text-slate-500 uppercase font-bold">Module (m)</label>
                     <select id="module-sel" onchange="updateDesign()">
                         <option value="1">1.0</option><option value="2">2.0</option>
                         <option value="3" selected>3.0</option><option value="4">4.0</option>
-                        <option value="5">5.0</option>
+                        <option value="5">5.0</option><option value="8">8.0</option>
                     </select>
                 </section>
 
-                <section class="grid grid-cols-2 gap-2">
+                <div class="grid grid-cols-2 gap-2">
                     <div><label class="text-[9px] text-slate-500 uppercase font-bold">Power (kW)</label><input type="number" id="in-p" value="15" oninput="updateDesign()"></div>
                     <div><label class="text-[9px] text-slate-500 uppercase font-bold">RPM (n1)</label><input type="number" id="in-n" value="1440" oninput="updateDesign()"></div>
-                </section>
+                </div>
 
-                <section class="grid grid-cols-2 gap-2">
-                    <div><label class="text-[9px] text-slate-500 uppercase font-bold">Z1</label><input type="number" id="z1" value="18" oninput="updateDesign()"></div>
-                    <div><label class="text-[9px] text-slate-500 uppercase font-bold">Z2</label><input type="number" id="z2" value="54" oninput="updateDesign()"></div>
-                </section>
+                <div class="grid grid-cols-2 gap-2">
+                    <div><label class="text-[9px] text-slate-500 uppercase font-bold">Z1 (Pinion)</label><input type="number" id="z1" value="18" oninput="updateDesign()"></div>
+                    <div><label class="text-[9px] text-slate-500 uppercase font-bold">Z2 (Gear)</label><input type="number" id="z2" value="54" oninput="updateDesign()"></div>
+                </div>
             </aside>
 
             <main class="flex-1 relative bg-[#f8fafc]">
@@ -162,32 +154,21 @@
 
     <script>
         let scene, camera, renderer, controls, gearGroup;
-        
+
+        // --- Data Tables ---
         const serviceFactorTable = {
-            steady: { intermittent: 0.80, standard: 1.00, continuous: 1.25 },
-            light: { intermittent: 1.00, standard: 1.25, continuous: 1.50 },
-            medium: { intermittent: 1.25, standard: 1.50, continuous: 1.80 },
-            heavy: { intermittent: 1.50, standard: 1.80, continuous: 2.00 }
+            steady: { intermittent: 0.8, standard: 1.0, continuous: 1.25 },
+            medium: { intermittent: 1.2, standard: 1.5, continuous: 1.8 },
+            heavy: { intermittent: 1.5, standard: 1.8, continuous: 2.0 }
         };
 
         const dynamicFactorC = {
-            "14.5": {
-                "CI_CI": { "0.01": 55.2, "0.02": 110.4, "0.03": 165.6, "0.04": 220.9, "0.06": 331.3, "0.08": 441.7, "0.10": 552.1 },
-                "CI_ST": { "0.01": 75.8, "0.02": 151.6, "0.03": 227.4, "0.04": 303.2, "0.06": 454.8, "0.08": 606.4, "0.10": 758.1 },
-                "ST_ST": { "0.01": 110.3, "0.02": 220.6, "0.03": 330.9, "0.04": 441.3, "0.06": 662.0, "0.08": 882.6, "0.10": 1103.2 }
-            },
-            "20": {
-                "CI_CI": { "0.01": 57.3, "0.02": 114.5, "0.03": 171.8, "0.04": 229.1, "0.06": 343.6, "0.08": 458.2, "0.10": 572.7 },
-                "CI_ST": { "0.01": 78.6, "0.02": 157.3, "0.03": 235.9, "0.04": 314.6, "0.06": 471.9, "0.08": 629.2, "0.10": 786.5 },
-                "ST_ST": { "0.01": 114.4, "0.02": 228.9, "0.03": 343.3, "0.04": 457.8, "0.06": 686.7, "0.08": 915.6, "0.10": 1144.4 }
-            },
-            "20stub": {
-                "CI_CI": { "0.01": 59.3, "0.02": 118.7, "0.03": 178.0, "0.04": 237.3, "0.06": 356.0, "0.08": 474.6, "0.10": 593.3 },
-                "CI_ST": { "0.01": 81.4, "0.02": 162.8, "0.03": 244.2, "0.04": 325.6, "0.06": 488.4, "0.08": 651.2, "0.10": 814.0 },
-                "ST_ST": { "0.01": 118.7, "0.02": 237.3, "0.03": 356.0, "0.04": 474.6, "0.06": 712.0, "0.08": 949.3, "0.10": 1186.6 }
-            }
+            "14.5": { "ST_ST": { "0.01": 110, "0.03": 330, "0.06": 660 }, "CI_CI": { "0.01": 55, "0.03": 165, "0.06": 331 }, "CI_ST": { "0.01": 75, "0.03": 227, "0.06": 454 } },
+            "20": { "ST_ST": { "0.01": 114, "0.03": 343, "0.06": 686 }, "CI_CI": { "0.01": 57, "0.03": 171, "0.06": 343 }, "CI_ST": { "0.01": 78, "0.03": 235, "0.06": 471 } },
+            "20stub": { "ST_ST": { "0.01": 118, "0.03": 356, "0.06": 712 }, "CI_CI": { "0.01": 59, "0.03": 178, "0.06": 356 }, "CI_ST": { "0.01": 81, "0.03": 244, "0.06": 488 } }
         };
 
+        // --- Core Engine ---
         function launchEngine(mode) {
             document.getElementById('splash-screen').style.display = 'none';
             document.getElementById('main-engine').classList.remove('hidden');
@@ -216,45 +197,75 @@
             if(!gearGroup) return;
             while(gearGroup.children.length > 0) gearGroup.remove(gearGroup.children[0]);
             
+            // 1. Inputs
             const z1 = parseInt(document.getElementById('z1').value) || 1;
             const z2 = parseInt(document.getElementById('z2').value) || 1;
             const m = parseFloat(document.getElementById('module-sel').value);
             const p = parseFloat(document.getElementById('in-p').value);
-            const n = parseFloat(document.getElementById('in-n').value);
+            const n1 = parseFloat(document.getElementById('in-n').value);
             const toothType = document.getElementById('tooth-system').value;
             const errorVal = document.getElementById('gear-error').value;
             const matPair = document.getElementById('mat-pair').value;
-            const sigmaD = parseFloat(document.getElementById('material-stress').value);
-            
-            const load = document.getElementById('load-type').value;
-            const service = document.getElementById('service-type').value;
-            const cs = serviceFactorTable[load][service];
-            
-            const factorC = dynamicFactorC[toothType][matPair][errorVal];
+            const sigma0 = parseFloat(document.getElementById('material-stress').value);
+            const cs = serviceFactorTable[document.getElementById('load-type').value][document.getElementById('service-type').value];
+            const C = dynamicFactorC[toothType][matPair][errorVal];
 
+            // 2. Geometry
             const d1 = z1 * m;
-            const v = (Math.PI * d1 * n) / (60000);
+            const d2 = z2 * m;
+            const b = 10 * m; // Face width
+            const v = (Math.PI * d1 * n1) / 60000;
+            
+            // 3. Weaker Member (Lewis Form Factor Y)
+            const getY = (z) => (toothType === "20") ? 0.154 - (0.912/z) : 0.124 - (0.684/z);
+            const y1 = getY(z1);
+            const y2 = getY(z2);
+            const weaker = (sigma0 * y1 <= sigma0 * y2) ? "Pinion" : "Gear";
+            const designY = (weaker === "Pinion") ? y1 : y2;
+
+            // 4. Forces
             const ft = (v > 0) ? (1000 * p) / v : 0;
+            const ftEff = ft * cs;
 
+            // 5. Analytical Checks
+            const fs = sigma0 * b * Math.PI * m * designY; // Beam Strength
+            const fd = ftEff + ((21 * v * (b * C + ftEff)) / (21 * v + Math.sqrt(b * C + ftEff))); // Dynamic
+            const ratioQ = (2 * z2) / (z1 + z2);
+            const fw = d1 * b * ratioQ * 1.11; // Wear (K factor 1.11 for hardened steel)
+
+            // 6. Visuals
             gearGroup.add(createGearMesh(z1, m, 0, 0x3b82f6));
-            gearGroup.add(createGearMesh(z2, m, (d1 + (z2*m))/2, 0x94a3b8));
+            gearGroup.add(createGearMesh(z2, m, (d1 + d2)/2, 0x94a3b8));
 
+            // 7. Summary
             document.getElementById('step-output').innerHTML = `
-                <div class="p-3 bg-emerald-50 border border-emerald-200 rounded">
-                    <b class="text-emerald-700 uppercase text-[9px]">0. Material & Service Factors</b><br>
-                    Static Stress (σd): <b>${sigmaD.toFixed(2)} MN/m²</b><br>
-                    Service Factor (Cs): <b>${cs.toFixed(2)}</b><br>
-                    Dynamic Factor (C): <b>${factorC} N/mm</b>
+                <div class="p-3 bg-slate-100 border border-slate-300 rounded mb-2">
+                    <b class="text-slate-700 uppercase text-[9px]">1. Geometry & Material</b><br>
+                    Weaker: <span class="text-blue-600 font-bold">${weaker}</span><br>
+                    Velocity: ${v.toFixed(2)} m/s | Y: ${designY.toFixed(3)}
                 </div>
-                <div class="p-3 bg-blue-50 border border-blue-200 rounded">
-                    <b class="text-blue-700 uppercase text-[9px]">1. Velocity & Force</b><br>
-                    v = ${v.toFixed(2)} m/s<br>
-                    Ft = <b>${ft.toFixed(2)} N</b>
+                
+                <div class="p-3 bg-blue-50 border border-blue-200 rounded mb-2">
+                    <b class="text-blue-700 uppercase text-[9px]">2. Tangential Load</b><br>
+                    Ft (Tangential): ${ft.toFixed(2)} N<br>
+                    Ft-eff (Service): ${ftEff.toFixed(2)} N
                 </div>
-                <div class="p-3 bg-amber-50 border border-amber-200 rounded">
-                    <b class="text-amber-700 uppercase text-[9px]">2. Dynamic Load Data</b><br>
-                    Gear Error: ${errorVal} mm<br>
-                    C (Table 12.12): <b>${factorC}</b>
+
+                <div class="p-3 ${fs > fd ? 'bg-emerald-50 border-emerald-200' : 'bg-red-50 border-red-200'} rounded mb-2">
+                    <b class="text-emerald-700 uppercase text-[9px]">3. Beam Strength (Lewis)</b><br>
+                    Fs: <b>${fs.toFixed(2)} N</b><br>
+                    Status: ${fs > fd ? '✅ SAFE' : '❌ FAIL (Low Module)'}
+                </div>
+
+                <div class="p-3 bg-amber-50 border border-amber-200 rounded mb-2">
+                    <b class="text-amber-700 uppercase text-[9px]">4. Dynamic Load (Buckingham)</b><br>
+                    Fd: <b>${fd.toFixed(2)} N</b>
+                </div>
+
+                <div class="p-3 ${fw > fd ? 'bg-emerald-50 border-emerald-200' : 'bg-red-50 border-red-200'} rounded">
+                    <b class="text-purple-700 uppercase text-[9px]">5. Wear Check (Pitting)</b><br>
+                    Fw: <b>${fw.toFixed(2)} N</b><br>
+                    Status: ${fw > fd ? '✅ SAFE' : '❌ FAIL (Hardness)'}
                 </div>
             `;
         }
@@ -262,7 +273,7 @@
         function createGearMesh(z, m, x, color) {
             const r = (z * m) / 2;
             const geo = new THREE.CylinderGeometry(r, r, 10, 32);
-            const mesh = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ color }));
+            const mesh = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ color, wireframe: false }));
             mesh.position.x = x;
             mesh.rotation.x = Math.PI / 2;
             return mesh;
@@ -274,7 +285,7 @@
             document.getElementById('pdf-content').innerHTML = document.getElementById('step-output').innerHTML;
             const canvas = await html2canvas(document.getElementById('pdf-template'));
             doc.addImage(canvas.toDataURL('image/png'), 'PNG', 15, 15, 180, 0);
-            doc.save('Gear_Design_Report.pdf');
+            doc.save('SpurGear_Analytical_Report.pdf');
         }
 
         function animate() {
@@ -282,4 +293,6 @@
             if(controls) controls.update();
             renderer.render(scene, camera);
         }
-    </script></body></html>
+    </script>
+</body>
+</html>
