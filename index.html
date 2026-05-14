@@ -26,8 +26,6 @@
             to { opacity: 1; transform: translateX(0); }
         }
         .calc-card { animation: slideIn 0.4s ease-out forwards; }
-        
-        /* New Toggle Style */
         #anim-toggle { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); z-index: 50; }
     </style>
 </head>
@@ -35,7 +33,6 @@
 
     <div id="splash-screen">
         <div class="max-w-5xl w-full px-8 text-center">
-            <img src="image_792432.png" alt="Gear Logo" class="w-24 h-24 mx-auto mb-6 rounded-lg shadow-xl">
             <h2 class="text-white text-3xl font-bold mb-10">Select Design Path</h2>
             <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div class="option-card text-left" onclick="launchEngine('single')">
@@ -58,7 +55,6 @@
         <header class="h-12 glass flex items-center justify-between px-8 border-b border-black/5 z-20">
             <div class="flex items-center gap-4">
                 <button onclick="location.reload()" class="text-[10px] bg-slate-100 px-2 py-1 rounded">← MENU</button>
-                <img src="image_792432.png" alt="Icon" class="h-6 w-6 rounded">
                 <h1 class="text-xs font-bold tracking-widest uppercase text-slate-800">SpurGear <span id="mode-label" class="text-blue-600">--</span></h1>
             </div>
             <button onclick="generatePDF()" class="bg-blue-600 text-white text-[10px] px-4 py-1.5 rounded-full font-bold hover:bg-blue-700 transition">
@@ -67,7 +63,6 @@
         </header>
 
         <div class="flex-1 flex overflow-hidden relative">
-            <!-- Animation Toggle Button -->
             <div id="anim-toggle">
                 <button id="toggleBtn" onclick="toggleAnimation()" class="bg-slate-800 text-white text-[10px] px-6 py-2 rounded-full font-bold shadow-lg hover:bg-blue-600 transition-all">
                     MOTION: ON
@@ -178,7 +173,6 @@
         let scene, camera, renderer, controls, gearGroup, engineMode;
         let activeGears = []; 
         let isAnimating = true;
-        let lateralParticles = [];
 
         const serviceFactorTable = {
             steady: { intermittent: 0.8, standard: 1.0, continuous: 1.25 },
@@ -264,16 +258,8 @@
 
             gearContainer.position.set(x, yOffset, zOffset);
             gearContainer.rotation.x = Math.PI / 2;
-            gearContainer.rotation.y = initialOffset;
-            activeGears.push({ obj: gearContainer, speed: speedFactor, pitch: r_pitch });
-            
-            // Add a "reaction flow" particle for lateral opposite motion
-            const pGeo = new THREE.SphereGeometry(1.5, 8, 8);
-            const pMat = new THREE.MeshBasicMaterial({ color: 0xff4444 });
-            const particle = new THREE.Mesh(pGeo, pMat);
-            particle.position.set(x + (speedFactor > 0 ? r_pitch : -r_pitch), yOffset + 12, zOffset);
-            gearGroup.add(particle);
-            lateralParticles.push({ mesh: particle, originX: x, gearSpeed: speedFactor, radius: r_pitch });
+            gearContainer.rotation.y = initialOffset; // Apply starting alignment
+            activeGears.push({ obj: gearContainer, speed: speedFactor });
 
             return gearContainer;
         }
@@ -282,7 +268,6 @@
             if(!gearGroup) return;
             while(gearGroup.children.length > 0) gearGroup.remove(gearGroup.children[0]);
             activeGears = [];
-            lateralParticles = [];
             
             const z1 = parseInt(document.getElementById('z1').value) || 1;
             const z2 = parseInt(document.getElementById('z2').value) || 1;
@@ -312,22 +297,28 @@
             const fd = ftEff + ((21 * v * (b * C + ftEff)) / (21 * v + Math.sqrt(b * C + ftEff)));
 
             if(engineMode === 'single') {
+                // Pinion (Input) Speed = 1
                 gearGroup.add(createGearMesh(z1, m, 0, gearColor, 0, 0, 1, 0));
+                // Gear (Output) Speed = - (Z1/Z2)
+                // Offset by Math.PI/z2 to align tooth with gap
                 gearGroup.add(createGearMesh(z2, m, (d1 + d2)/2, gearColor, 0, 0, -ratio1, Math.PI/z2));
             } else if (engineMode === 'double') {
                 gearGroup.add(createGearMesh(z1, m, 0, gearColor, 0, 0, 1));
                 gearGroup.add(createGearMesh(z2, m, (d1 + d2)/2, gearColor, 0, 0, -ratio1, Math.PI/z2));
                 const d3 = z3 * m, d4 = z4 * m;
-                const ratio2 = z3 / z4;
                 gearGroup.add(createGearMesh(z3, m, 0, gearColor, 0, 50, 1));
-                gearGroup.add(createGearMesh(z4, m, (d3 + d4)/2, gearColor, 0, 50, -ratio2, Math.PI/z4));
+                gearGroup.add(createGearMesh(z4, m, (d3 + d4)/2, gearColor, 0, 50, -(z3/z4), Math.PI/z4));
             } else if (engineMode === 'compound') {
+                // Shaft A
                 gearGroup.add(createGearMesh(z1, m, 0, gearColor, 0, 0, 1));
-                const shaftX = (d1 + d2)/2;
-                gearGroup.add(createGearMesh(z2, m, shaftX, gearColor, 0, 0, -ratio1, Math.PI/z2));
-                gearGroup.add(createGearMesh(z3, m, shaftX, gearColor, 12, 0, -ratio1, 0)); 
+                // Shaft B (Z2 meshes with Z1, Z3 is fixed to Z2)
+                const shaftBX = (d1 + d2)/2;
+                gearGroup.add(createGearMesh(z2, m, shaftBX, gearColor, 0, 0, -ratio1, Math.PI/z2));
+                gearGroup.add(createGearMesh(z3, m, shaftBX, gearColor, 12, 0, -ratio1, 0)); 
+                // Shaft C (Z4 meshes with Z3)
                 const d3 = z3 * m, d4 = z4 * m;
-                gearGroup.add(createGearMesh(z4, m, shaftX + (d3 + d4)/2, gearColor, 12, 0, (ratio1 * (z3/z4)), Math.PI/z4));
+                const ratio2 = z3 / z4;
+                gearGroup.add(createGearMesh(z4, m, shaftBX + (d3 + d4)/2, gearColor, 12, 0, ratio1 * ratio2, Math.PI/z4));
             }
 
             const output = document.getElementById('step-output');
@@ -342,7 +333,7 @@
                 </div>
                 <div class="calc-card p-3 ${fs > fd ? 'bg-emerald-50' : 'bg-red-50'} rounded mb-2">
                     <b class="uppercase text-[9px]">3. Strength</b><br>
-                    Fs: ${fs.toFixed(2)} N
+                    Fs: ${fs.toFixed(2)} N | Fd: ${fd.toFixed(2)} N
                 </div>
             `;
         }
@@ -360,20 +351,12 @@
             requestAnimationFrame(animate);
             if(isAnimating) {
                 const rpm = parseFloat(document.getElementById('in-n').value) || 0;
-                const angularVelocity = (rpm * 2 * Math.PI) / (3600); 
+                // Rotational speed increment
+                const step = (rpm * Math.PI) / 60000; 
                 
                 activeGears.forEach(gear => {
-                    gear.obj.rotation.y += angularVelocity * gear.speed;
-                });
-
-                // Lateral Opposite Motion: Particles moving tangentially opposite to the rotation
-                lateralParticles.forEach(p => {
-                    // Calculate lateral shift based on angular velocity but in opposite sign
-                    const lateralSpeed = angularVelocity * p.radius;
-                    p.mesh.position.z += lateralSpeed * (p.gearSpeed > 0 ? -1 : 1) * 20; 
-                    
-                    // Reset position for continuous lateral flow effect
-                    if (Math.abs(p.mesh.position.z) > 40) p.mesh.position.z = -p.mesh.position.z;
+                    // Update rotation based on specific gear's speed factor
+                    gear.obj.rotation.y += step * gear.speed;
                 });
             }
 
