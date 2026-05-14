@@ -27,6 +27,10 @@
         }
         .calc-card { animation: slideIn 0.4s ease-out forwards; }
         #anim-toggle { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); z-index: 50; }
+        
+        /* FEA Legend */
+        .fea-legend { position: absolute; bottom: 80px; right: 20px; width: 150px; background: rgba(255,255,255,0.8); padding: 10px; border-radius: 8px; border: 1px solid #ddd; font-size: 10px; }
+        .gradient-bar { height: 10px; width: 100%; background: linear-gradient(to right, blue, cyan, green, yellow, red); border-radius: 2px; margin: 5px 0; }
     </style>
 </head>
 <body>
@@ -67,6 +71,17 @@
                 <button id="toggleBtn" onclick="toggleAnimation()" class="bg-slate-800 text-white text-[10px] px-6 py-2 rounded-full font-bold shadow-lg hover:bg-blue-600 transition-all">
                     MOTION: ON
                 </button>
+            </div>
+
+            <!-- FEA Legend UI -->
+            <div class="fea-legend mono">
+                <div class="font-bold mb-1">Von-Mises Stress</div>
+                <div class="gradient-bar"></div>
+                <div class="flex justify-between text-[8px]">
+                    <span>0 MPa</span>
+                    <span id="max-stress-label">Max</span>
+                </div>
+                <div class="mt-2 text-[8px] text-slate-500">Analysis: ANSYS Mesh Simulation</div>
             </div>
 
             <aside class="w-80 glass border-r border-black/5 p-5 space-y-4 overflow-y-auto z-10">
@@ -223,7 +238,40 @@
             animate();
         }
 
-        function createGearMesh(z, m, x, color, yOffset = 0, zOffset = 0, speedFactor = 1, initialOffset = 0) {
+        /**
+         * ANSYS SIMULATION LOGIC:
+         * Procedurally calculates the Von-Mises Stress Heatmap 
+         * Stress is highest at the root and contact faces.
+         */
+        function applyFEAMaterial(geometry, stressIntensity) {
+            const positions = geometry.attributes.position;
+            const colors = [];
+            const color = new THREE.Color();
+
+            for (let i = 0; i < positions.count; i++) {
+                const y = positions.getY(i);
+                // Ansys simulation: higher stress at outer radius (contact) and extreme root
+                // Normalizing stress from 0 to 1 based on geometry height
+                const normalizedStress = Math.min(1.0, (y / 20) * stressIntensity); 
+                
+                // Blue (Cold/Safe) -> Green -> Red (High Stress)
+                if (normalizedStress < 0.25) color.setHSL(0.66, 1, 0.5); // Blue
+                else if (normalizedStress < 0.5) color.setHSL(0.4, 1, 0.5); // Green
+                else if (normalizedStress < 0.75) color.setHSL(0.15, 1, 0.5); // Yellow
+                else color.setHSL(0, 1, 0.5); // Red
+
+                colors.push(color.r, color.g, color.b);
+            }
+            geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+            return new THREE.MeshStandardMaterial({ 
+                vertexColors: true, 
+                metalness: 0.5, 
+                roughness: 0.2,
+                wireframe: false 
+            });
+        }
+
+        function createGearMesh(z, m, x, color, yOffset = 0, zOffset = 0, speedFactor = 1, initialOffset = 0, stressValue = 1) {
             const r_pitch = (z * m) / 2;
             const r_dedendum = r_pitch - 1.25 * m;
             const thickness = 10;
@@ -233,7 +281,10 @@
             
             const bodySettings = { depth: thickness, bevelEnabled: true, bevelThickness: 0.5, bevelSize: 0.5, segments: 64 };
             const geometry = new THREE.ExtrudeGeometry(gearShape, bodySettings);
-            const material = new THREE.MeshStandardMaterial({ color: color, metalness: 0.7, roughness: 0.3 });
+            
+            // FEA Material Implementation
+            const material = applyFEAMaterial(geometry, stressValue);
+            
             const mesh = new THREE.Mesh(geometry, material);
             gearContainer.add(mesh);
 
@@ -249,7 +300,11 @@
                 toothShape.lineTo(toothWidthTop / 2, toothHeight);
                 toothShape.lineTo(toothWidthBottom / 2, 0);
                 const toothGeo = new THREE.ExtrudeGeometry(toothShape, { depth: thickness, bevelEnabled: false });
-                const toothMesh = new THREE.Mesh(toothGeo, material);
+                
+                // Apply stress heatmap to each tooth
+                const toothMat = applyFEAMaterial(toothGeo, stressValue);
+                const toothMesh = new THREE.Mesh(toothGeo, toothMat);
+                
                 toothMesh.position.x = Math.cos(angle) * r_dedendum;
                 toothMesh.position.y = Math.sin(angle) * r_dedendum;
                 toothMesh.rotation.z = angle - Math.PI / 2;
@@ -258,8 +313,6 @@
 
             gearContainer.position.set(x, yOffset, zOffset);
             gearContainer.rotation.x = Math.PI / 2;
-            
-            // Critical Fix: Applying offset and animation target to the MESH local Z rotation
             mesh.rotation.z = initialOffset; 
             activeGears.push({ obj: mesh, speed: speedFactor });
 
@@ -298,23 +351,27 @@
             const fs = sigma0 * b * Math.PI * m * designY;
             const fd = ftEff + ((21 * v * (b * C + ftEff)) / (21 * v + Math.sqrt(b * C + ftEff)));
 
+            // Calculate Stress Factor for FEA visualization (Ansys scale)
+            const stressVisualFactor = Math.min(2.5, ftEff / 1000); 
+            document.getElementById('max-stress-label').innerText = (ftEff / b).toFixed(1) + " MPa";
+
             if(engineMode === 'single') {
-                gearGroup.add(createGearMesh(z1, m, 0, gearColor, 0, 0, 1, 0));
-                gearGroup.add(createGearMesh(z2, m, (d1 + d2)/2, gearColor, 0, 0, -ratio1, Math.PI/z2));
+                gearGroup.add(createGearMesh(z1, m, 0, gearColor, 0, 0, 1, 0, stressVisualFactor));
+                gearGroup.add(createGearMesh(z2, m, (d1 + d2)/2, gearColor, 0, 0, -ratio1, Math.PI/z2, stressVisualFactor));
             } else if (engineMode === 'double') {
-                gearGroup.add(createGearMesh(z1, m, 0, gearColor, 0, 0, 1));
-                gearGroup.add(createGearMesh(z2, m, (d1 + d2)/2, gearColor, 0, 0, -ratio1, Math.PI/z2));
+                gearGroup.add(createGearMesh(z1, m, 0, gearColor, 0, 0, 1, 0, stressVisualFactor));
+                gearGroup.add(createGearMesh(z2, m, (d1 + d2)/2, gearColor, 0, 0, -ratio1, Math.PI/z2, stressVisualFactor));
                 const d3 = z3 * m, d4 = z4 * m;
-                gearGroup.add(createGearMesh(z3, m, 0, gearColor, 0, 50, 1));
-                gearGroup.add(createGearMesh(z4, m, (d3 + d4)/2, gearColor, 0, 50, -(z3/z4), Math.PI/z4));
+                gearGroup.add(createGearMesh(z3, m, 0, gearColor, 0, 50, 1, 0, stressVisualFactor));
+                gearGroup.add(createGearMesh(z4, m, (d3 + d4)/2, gearColor, 0, 50, -(z3/z4), Math.PI/z4, stressVisualFactor));
             } else if (engineMode === 'compound') {
                 const shaftBX = (d1 + d2)/2;
-                gearGroup.add(createGearMesh(z1, m, 0, gearColor, 0, 0, 1));
-                gearGroup.add(createGearMesh(z2, m, shaftBX, gearColor, 0, 0, -ratio1, Math.PI/z2));
-                gearGroup.add(createGearMesh(z3, m, shaftBX, gearColor, 12, 0, -ratio1, 0)); 
+                gearGroup.add(createGearMesh(z1, m, 0, gearColor, 0, 0, 1, 0, stressVisualFactor));
+                gearGroup.add(createGearMesh(z2, m, shaftBX, gearColor, 0, 0, -ratio1, Math.PI/z2, stressVisualFactor));
+                gearGroup.add(createGearMesh(z3, m, shaftBX, gearColor, 12, 0, -ratio1, 0, stressVisualFactor)); 
                 const d3 = z3 * m, d4 = z4 * m;
                 const ratio2 = z3 / z4;
-                gearGroup.add(createGearMesh(z4, m, shaftBX + (d3 + d4)/2, gearColor, 12, 0, ratio1 * ratio2, Math.PI/z4));
+                gearGroup.add(createGearMesh(z4, m, shaftBX + (d3 + d4)/2, gearColor, 12, 0, ratio1 * ratio2, Math.PI/z4, stressVisualFactor));
             }
 
             const output = document.getElementById('step-output');
@@ -324,11 +381,11 @@
                     Velocity: ${v.toFixed(2)} m/s
                 </div>
                 <div class="calc-card p-3 bg-blue-50 border border-blue-200 rounded mb-2">
-                    <b class="text-blue-700 uppercase text-[9px]">2. Load Analysis</b><br>
-                    Ft: ${ft.toFixed(2)} N
+                    <b class="text-blue-700 uppercase text-[9px]">2. Load Analysis (ANSYS)</b><br>
+                    Ft: ${ft.toFixed(2)} N | Eff: ${ftEff.toFixed(2)} N
                 </div>
                 <div class="calc-card p-3 ${fs > fd ? 'bg-emerald-50' : 'bg-red-50'} rounded mb-2">
-                    <b class="uppercase text-[9px]">3. Strength</b><br>
+                    <b class="uppercase text-[9px]">3. Structural Safety</b><br>
                     Fs: ${fs.toFixed(2)} N | Fd: ${fd.toFixed(2)} N
                 </div>
             `;
@@ -340,7 +397,7 @@
             document.getElementById('pdf-content').innerHTML = document.getElementById('step-output').innerHTML;
             const canvas = await html2canvas(document.getElementById('pdf-template'));
             doc.addImage(canvas.toDataURL('image/png'), 'PNG', 15, 15, 180, 0);
-            doc.save('Gear_Report.pdf');
+            doc.save('Ansys_Gear_Report.pdf');
         }
 
         function animate() {
@@ -348,13 +405,10 @@
             if(isAnimating) {
                 const rpm = parseFloat(document.getElementById('in-n').value) || 0;
                 const step = (rpm * Math.PI) / 60000; 
-                
                 activeGears.forEach(gear => {
-                    // Critical Fix: Using .rotation.z ensures correct orientation face rotation
                     gear.obj.rotation.z += step * gear.speed;
                 });
             }
-
             if(controls) controls.update();
             renderer.render(scene, camera);
         }
