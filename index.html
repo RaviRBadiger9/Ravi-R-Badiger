@@ -59,11 +59,24 @@
             <aside class="w-72 glass border-r border-black/5 p-6 space-y-5 overflow-y-auto z-10">
                 
                 <section>
+                    <label class="text-[9px] text-slate-500 uppercase font-bold">Material - Table 12.7</label>
+                    <select id="material-sel" onchange="updateDesign()">
+                        <option value="233.4">Steel, C45 untreated</option>
+                        <option value="207.0">Steel, C40 untreated</option>
+                        <option value="220.6">Steel, C30 heat treated</option>
+                        <option value="345.2">Alloy steel, case hardened</option>
+                        <option value="56.4">Cast Iron Grade 25</option>
+                        <option value="138.3">Phosphor gear bronze</option>
+                        <option value="41.2">Plastic (Bakelite/Celon)</option>
+                    </select>
+                </section>
+
+                <section>
                     <label class="text-[9px] text-slate-500 uppercase font-bold">Tooth System (Table 12.5)</label>
                     <select id="tooth-system" onchange="updateDesign()">
-                        <option value="fourteen">14.5° Involute</option>
-                        <option value="twenty" selected>20° Full Depth</option>
-                        <option value="stub">20° Stub Teeth</option>
+                        <option value="14.5">14.5° Involute</option>
+                        <option value="20" selected>20° Full Depth</option>
+                        <option value="20stub">20° Stub Teeth</option>
                     </select>
                 </section>
 
@@ -71,11 +84,20 @@
                     <label class="text-[9px] text-slate-500 uppercase font-bold">Module (m) - Table 12.2</label>
                     <select id="module-sel" onchange="updateDesign()">
                         <optgroup label="Choice 1 (Preferred)">
-                            <option value="1">1.0</option><option value="1.25">1.25</option>
-                            <option value="1.5">1.5</option><option value="2">2.0</option>
-                            <option value="3" selected>3.0</option><option value="4">4.0</option>
-                            <option value="5">5.0</option><option value="8">8.0</option>
+                            <option value="1">1.0</option><option value="1.5">1.5</option>
+                            <option value="2">2.0</option><option value="3" selected>3.0</option>
+                            <option value="4">4.0</option><option value="5">5.0</option>
+                            <option value="8">8.0</option>
                         </optgroup>
+                    </select>
+                </section>
+
+                <section>
+                    <label class="text-[9px] text-slate-500 uppercase font-bold">Velocity Factor (Cv)</label>
+                    <select id="cv-type" onchange="updateDesign()">
+                        <option value="rough">Commercial Cut (v < 10)</option>
+                        <option value="medium" selected>Generated Teeth (v < 20)</option>
+                        <option value="high">Precision Ground (v > 20)</option>
                     </select>
                 </section>
 
@@ -85,8 +107,8 @@
                 </section>
 
                 <section class="grid grid-cols-2 gap-2">
-                    <div><label class="text-[9px] text-slate-500 uppercase font-bold">Z1 (Pinion)</label><input type="number" id="z1" value="18" oninput="updateDesign()"></div>
-                    <div><label class="text-[9px] text-slate-500 uppercase font-bold">Z2 (Gear)</label><input type="number" id="z2" value="54" oninput="updateDesign()"></div>
+                    <div><label class="text-[9px] text-slate-500 uppercase font-bold">Z1</label><input type="number" id="z1" value="18" oninput="updateDesign()"></div>
+                    <div><label class="text-[9px] text-slate-500 uppercase font-bold">Z2</label><input type="number" id="z2" value="54" oninput="updateDesign()"></div>
                 </section>
             </aside>
 
@@ -107,27 +129,6 @@
     </div>
 
     <script>
-        // Data from Table 12.5 (image_8480b8.jpg)
-        const lewisTable = {
-            fourteen: { 12:0.067, 13:0.071, 14:0.075, 15:0.078, 16:0.081, 17:0.084, 18:0.086, 19:0.088, 20:0.090, 21:0.092, 22:0.093, 24:0.095, 26:0.098, 28:0.100, 30:0.101, 34:0.104, 38:0.106, 43:0.108, 50:0.110, 60:0.113, 100:0.117, 150:0.119, 300:0.122, rack:0.124 },
-            twenty: { 12:0.078, 13:0.083, 14:0.088, 15:0.092, 16:0.094, 17:0.096, 18:0.098, 19:0.100, 20:0.102, 21:0.104, 22:0.105, 24:0.107, 26:0.110, 28:0.112, 30:0.114, 34:0.118, 38:0.122, 43:0.126, 50:0.130, 60:0.134, 100:0.142, 150:0.146, 300:0.150, rack:0.154 },
-            stub: { 12:0.099, 13:0.103, 14:0.108, 15:0.111, 16:0.115, 17:0.117, 18:0.120, 19:0.123, 20:0.125, 21:0.127, 22:0.129, 24:0.132, 26:0.135, 28:0.137, 30:0.139, 34:0.142, 38:0.145, 43:0.147, 50:0.151, 60:0.154, 100:0.161, 150:0.165, 300:0.170, rack:0.175 }
-        };
-
-        function getLewisY(z, type) {
-            const row = lewisTable[type];
-            if (row[z]) return row[z];
-            // Simple linear interpolation for missing intermediate values
-            const keys = Object.keys(row).filter(k => k !== 'rack').map(Number).sort((a,b) => a-b);
-            for(let i=0; i<keys.length-1; i++) {
-                if(z > keys[i] && z < keys[i+1]) {
-                    const t = (z - keys[i]) / (keys[i+1] - keys[i]);
-                    return row[keys[i]] + t * (row[keys[i+1]] - row[keys[i]]);
-                }
-            }
-            return z > 300 ? row['rack'] : row[12];
-        }
-
         let scene, camera, renderer, controls, gearGroup;
         let currentMode = 'single';
 
@@ -160,39 +161,62 @@
             if(!gearGroup) return;
             while(gearGroup.children.length > 0) gearGroup.remove(gearGroup.children[0]);
             
-            const z1 = parseInt(document.getElementById('z1').value) || 12;
-            const z2 = parseInt(document.getElementById('z2').value) || 12;
+            const z1 = parseInt(document.getElementById('z1').value) || 1;
+            const z2 = parseInt(document.getElementById('z2').value) || 1;
             const m = parseFloat(document.getElementById('module-sel').value);
             const p = parseFloat(document.getElementById('in-p').value);
             const n = parseFloat(document.getElementById('in-n').value);
+            const cvType = document.getElementById('cv-type').value;
             const toothType = document.getElementById('tooth-system').value;
+            const sigmaD = parseFloat(document.getElementById('material-sel').value);
 
+            // 1. Pitch Line Velocity
             const d1 = z1 * m;
             const v = (Math.PI * d1 * n) / (60000);
-            const ft = (v > 0) ? (1000 * p) / v : 0;
-            
-            let cv = (v < 10) ? 3/(3+v) : (v < 20) ? 6/(6+v) : 5.6/(5.6+Math.sqrt(v));
-            const y = getLewisY(z1, toothType);
-            const fEff = ft / cv;
 
+            // 2. Tangential Force
+            const ft = (v > 0) ? (1000 * p) / v : 0;
+
+            // 3. Velocity Factor (Cv)
+            let cv = 0, cvForm = "";
+            if(cvType === "rough") { cv = 3 / (3 + v); cvForm = "3 / (3 + v)"; }
+            else if(cvType === "medium") { cv = 6 / (6 + v); cvForm = "6 / (6 + v)"; }
+            else { cv = 5.6 / (5.6 + Math.sqrt(v)); cvForm = "5.6 / (5.6 + √v)"; }
+
+            // 4. Lewis Factor (y)
+            let y = 0;
+            if (toothType === "14.5") y = 0.124 - (0.684 / z1);
+            else if (toothType === "20") y = 0.154 - (0.912 / z1);
+            else y = 0.175 - (0.95 / z1);
+
+            // 5. Results UI
+            const fEff = ft / cv;
             gearGroup.add(createGearMesh(z1, m, 0, 0x3b82f6));
             gearGroup.add(createGearMesh(z2, m, (d1 + (z2*m))/2, 0x94a3b8));
 
             document.getElementById('step-output').innerHTML = `
-                <div class="p-3 bg-blue-50 border border-blue-200 rounded">
-                    <b class="text-blue-700 uppercase text-[9px]">Calculated Ft</b><br>
-                    v = ${v.toFixed(2)} m/s<br>
-                    Ft = <b>${ft.toFixed(2)} N</b>
+                <div class="p-3 bg-emerald-50 border border-emerald-200 rounded">
+                    <b class="text-emerald-700 uppercase text-[9px]">0. Allowable Stress (σd) - Table 12.7</b><br>
+                    Selected Material σd: <b>${sigmaD.toFixed(2)} MN/m²</b>
                 </div>
-                <div class="p-3 bg-indigo-50 border border-indigo-200 rounded">
-                    <b class="text-indigo-700 uppercase text-[9px]">Table 12.5 Lewis Factor</b><br>
-                    For Z = ${z1} (${toothType}):<br>
-                    y = <b>${y.toFixed(4)}</b>
+                <div class="p-3 bg-blue-50 border border-blue-200 rounded">
+                    <b class="text-blue-700 uppercase text-[9px]">1. Tangential Force (Ft)</b><br>
+                    v = ${v.toFixed(2)} m/s<br>
+                    Ft = (1000 * P) / v = <b>${ft.toFixed(2)} N</b>
+                </div>
+                <div class="p-3 bg-slate-50 border border-slate-200 rounded">
+                    <b class="text-slate-700 uppercase text-[9px]">2. Velocity Factor (Cv)</b><br>
+                    Formula: ${cvForm}<br>
+                    Result: <b>${cv.toFixed(4)}</b>
                 </div>
                 <div class="p-3 bg-amber-50 border border-amber-200 rounded">
-                    <b class="text-amber-700 uppercase text-[9px]">Design Load</b><br>
-                    Cv = ${cv.toFixed(3)}<br>
-                    Feff = <b>${fEff.toFixed(2)} N</b>
+                    <b class="text-amber-700 uppercase text-[9px]">3. Effective Load (Feff)</b><br>
+                    Feff = Ft / Cv = <b>${fEff.toFixed(2)} N</b>
+                </div>
+                <div class="p-3 bg-indigo-50 border border-indigo-200 rounded">
+                    <b class="text-indigo-700 uppercase text-[9px]">4. Lewis Factor (y)</b><br>
+                    System: ${toothType}°<br>
+                    Factor y: <b>${y.toFixed(4)}</b>
                 </div>
             `;
         }
@@ -212,7 +236,7 @@
             document.getElementById('pdf-content').innerHTML = document.getElementById('step-output').innerHTML;
             const canvas = await html2canvas(document.getElementById('pdf-template'));
             doc.addImage(canvas.toDataURL('image/png'), 'PNG', 15, 15, 180, 0);
-            doc.save('Gear_Report_Table12.5.pdf');
+            doc.save('Gear_Full_Design.pdf');
         }
 
         function animate() {
