@@ -211,31 +211,67 @@
         }
 
         function createGearMesh(z, m, x, color, yOffset = 0, zOffset = 0) {
-            const r = (z * m) / 2;
-            const holeR = r * 0.2;
-            const thickness = 8;
-            const shape = new THREE.Shape();
-            shape.absarc(0, 0, r, 0, Math.PI * 2, false);
+            const r_pitch = (z * m) / 2;
+            const r_addendum = r_pitch + m;
+            const r_dedendum = r_pitch - 1.25 * m;
+            const r_hole = r_pitch * 0.2;
+            const r_hub = r_hole * 2;
+            const thickness = 10;
+
+            // 1. Create the Gear Body Shape (with hole)
+            const gearShape = new THREE.Shape();
+            gearShape.absarc(0, 0, r_dedendum, 0, Math.PI * 2, false);
+            
             const holePath = new THREE.Path();
-            holePath.absarc(0, 0, holeR, 0, Math.PI * 2, true);
-            shape.holes.push(holePath);
-            const extrudeSettings = { depth: thickness, bevelEnabled: true, bevelThickness: 1, bevelSize: 1, segments: 64 };
-            const geometry = new THREE.ExtrudeGeometry(shape, extrudeSettings);
-            const material = new THREE.MeshStandardMaterial({ color, metalness: 0.6, roughness: 0.2 });
+            holePath.absarc(0, 0, r_hole, 0, Math.PI * 2, true);
+            gearShape.holes.push(holePath);
+
+            // 2. Extrude the main body
+            const bodySettings = { depth: thickness, bevelEnabled: true, bevelThickness: 0.5, bevelSize: 0.5, segments: 64 };
+            const geometry = new THREE.ExtrudeGeometry(gearShape, bodySettings);
+            const material = new THREE.MeshStandardMaterial({ 
+                color: color, 
+                metalness: 0.7, 
+                roughness: 0.3,
+                flatShading: false 
+            });
             const mesh = new THREE.Mesh(geometry, material);
+
+            // 3. Create the Teeth
+            const toothWidthBottom = m * 1.57; // Approx circular pitch thickness
+            const toothWidthTop = m * 0.8;
+            const toothHeight = 2.25 * m;
+
+            for (let i = 0; i < z; i++) {
+                const angle = (i / z) * Math.PI * 2;
+                
+                // Create a trapezoidal tooth shape
+                const toothShape = new THREE.Shape();
+                toothShape.moveTo(-toothWidthBottom / 2, 0);
+                toothShape.lineTo(-toothWidthTop / 2, toothHeight);
+                toothShape.lineTo(toothWidthTop / 2, toothHeight);
+                toothShape.lineTo(toothWidthBottom / 2, 0);
+                toothShape.closePath();
+
+                const toothGeo = new THREE.ExtrudeGeometry(toothShape, { depth: thickness, bevelEnabled: false });
+                const toothMesh = new THREE.Mesh(toothGeo, material);
+                
+                // Position and rotate tooth to face outward from the dedendum circle
+                toothMesh.position.x = Math.cos(angle) * r_dedendum;
+                toothMesh.position.y = Math.sin(angle) * r_dedendum;
+                toothMesh.rotation.z = angle - Math.PI / 2;
+                mesh.add(toothMesh);
+            }
+
+            // 4. Add Hub detail
+            const hubGeo = new THREE.CylinderGeometry(r_hub, r_hub, thickness + 2, 32);
+            const hub = new THREE.Mesh(hubGeo, material);
+            hub.rotation.x = Math.PI / 2;
+            hub.position.z = thickness / 2;
+            mesh.add(hub);
+
             mesh.position.set(x, yOffset, zOffset);
             mesh.rotation.x = Math.PI / 2;
-            const teethGroup = new THREE.Group();
-            const toothGeo = new THREE.BoxGeometry(m, thickness, m*1.5);
-            for(let i=0; i<z; i++) {
-                const tooth = new THREE.Mesh(toothGeo, material);
-                const angle = (i / z) * Math.PI * 2;
-                tooth.position.x = Math.cos(angle) * r;
-                tooth.position.z = Math.sin(angle) * r;
-                tooth.rotation.y = -angle;
-                teethGroup.add(tooth);
-            }
-            mesh.add(teethGroup);
             return mesh;
         }
 
