@@ -1,4 +1,6 @@
-<!DOCTYPE html><html lang="en"><head>
+<!DOCTYPE html>
+<html lang="en">
+<head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SpurGear Pro | Analytical Engineering Suite</title>
@@ -28,7 +30,9 @@
         
         .fea-legend { position: absolute; bottom: 80px; right: 20px; width: 150px; background: rgba(255,255,255,0.8); padding: 10px; border-radius: 8px; border: 1px solid #ddd; font-size: 10px; }
         .gradient-bar { height: 10px; width: 100%; background: linear-gradient(to right, blue, cyan, green, yellow, red); border-radius: 2px; margin: 5px 0; }
-    </style></head><body>
+    </style>
+</head>
+<body>
 
     <div id="splash-screen">
         <div class="max-w-5xl w-full px-8 text-center">
@@ -263,7 +267,27 @@
             const thickness = 10;
             const gearContainer = new THREE.Group(); 
             const gearShape = new THREE.Shape();
+            
+            // Outer Body
             gearShape.absarc(0, 0, r_dedendum, 0, Math.PI * 2, false);
+
+            // Center shaft hole
+            const centerHole = new THREE.Path();
+            centerHole.absarc(0, 0, m * 2, 0, Math.PI * 2, true);
+            gearShape.holes.push(centerHole);
+
+            // Weight reduction holes (only for larger gears)
+            if (z > 20) {
+                const numHoles = 4;
+                const dist = r_dedendum * 0.6;
+                const holeRad = r_dedendum * 0.18;
+                for(let i=0; i<numHoles; i++) {
+                    const angle = (i / numHoles) * Math.PI * 2;
+                    const hPath = new THREE.Path();
+                    hPath.absarc(Math.cos(angle)*dist, Math.sin(angle)*dist, holeRad, 0, Math.PI*2, true);
+                    gearShape.holes.push(hPath);
+                }
+            }
             
             const bodySettings = { depth: thickness, bevelEnabled: true, bevelThickness: 0.5, bevelSize: 0.5, segments: 64 };
             const geometry = new THREE.ExtrudeGeometry(gearShape, bodySettings);
@@ -393,4 +417,6 @@
             if(controls) controls.update();
             renderer.render(scene, camera);
         }
-    </script></body></html>
+    </script>
+</body>
+</html>
